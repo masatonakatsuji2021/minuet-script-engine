@@ -1,0 +1,8 @@
+<? 
+await include("header.mseh"); ?>
+<div class="content">
+    content area.......OK
+    <p><a href="/header">header mode</a></p>
+    <p><a href="/page1">page1 mode</a></p>
+</div>
+<? await include("footer.mseh"); ?>

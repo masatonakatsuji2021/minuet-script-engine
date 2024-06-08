@@ -1,0 +1,5 @@
+<? await include("header.mseh"); ?>
+<div class="content">
+    Page1.....
+</div>
+<? await include("footer.mseh"); ?>
