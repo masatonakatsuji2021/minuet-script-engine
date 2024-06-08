@@ -1,0 +1,5 @@
+<? await include("common/header.mseh"); ?>
+
+<h2>404 Not Found.</h2>
+
+<? await include("common/footer.mseh"); ?>

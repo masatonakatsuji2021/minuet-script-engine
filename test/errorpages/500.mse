@@ -1,0 +1,10 @@
+<? await include("common/header.mseh"); ?>
+
+<h2>500 Internal Server Error</h2>
+
+<p><?
+const exception = this.exception;
+echo(exception.message + " (File: " + exception.option.fileName + ")"); 
+?></p>
+
+<? await include("common/footer.mseh"); ?>

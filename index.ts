@@ -25,45 +25,129 @@
 import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
+import { promises } from "dns";
 
-interface ISandbox {
-    req? : IncomingMessage,
-    res? : ServerResponse,
+export  class SandBox {
+    public req? : IncomingMessage;
+    public res? : ServerResponse;
+    [x: string] : any;
 }
 
-export  class SandBox implements ISandbox {
-     [x: string]: any;
-}
-
+/**
+ * ### IMseOptionPage
+ */
 export interface IMseOptionPage {
-    404? : string,
-    500?: string,
+    /**
+     * ***notFound*** : If the page does not exist or is an inaccessible page or endpoint,  
+     * the page file path is displayed instead of 404 notFound
+     */
+    notFound? : string,
+
+    /**
+     * ***internalError*** : Proxy page file path for 500 Internal Server Error.
+     */
+    InternalError?: string,
 }
 
-export interface MseOption {
+export enum MssIregularPageCode {
+    notFound = 404,
+    internalError = 500,
+}
+
+enum MseIregularPageName {
+    notFound = "/#notfound",
+    internalError = "/#internalerror",
+}
+
+/**
+ * ### IMseOption
+ */
+export interface IMseOption {
+
+    /**
+     * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+     */
     tagStart?  : string,
+
+    /**
+     * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+     */
     tagEnd? : string,
+
+    /**
+     * ***ext*** : The extension of the script file that corresponds to MSE   
+     * when automatically loading a buffer by specifying the root directory.  
+     * If not specified, the default is ``.mse``,
+     */
     ext? : string,
+
+    /**
+     * ***extHide*** : The extension of the script file that supports MSE   
+     * when automatically loading a buffer by specifying the root directory.   
+     * If the file has this extension, server access will be denied.  
+     * 
+     *  If not specified, the default is ``.mseh``,
+     */
     extHide? : string,
+
+    /**
+     * ***rootDir*** : Path of the root directory to automatically load the buffer.   
+     * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
+     */
     rootDir? : string,
+
+    /**
+     * ***modules*** : List of modules to use for the extension.
+     */
     modules? : Array<string>,
+
+    /**
+     * ***pages*** : Page information to display on behalf of irregular request results    
+     * For details, see ***IMseOptionPage***.
+     */
     pages?: IMseOptionPage,
 }
 
 export class MseError extends Error {
 
     private _statusCode : number;
-    public constructor(statusCode : number, errorMessage: string){
+    private _option;
+    public constructor(statusCode : number, errorMessage: string, option? : Object){
         super(errorMessage);
         this._statusCode = statusCode;
+        this._option = option;
     }
 
     public get statusCode() : number{
         return this._statusCode;
     }
 
+    public get option() : any{
+        return this._option;        
+    }
 }
 
+/**
+ * ### IMseLoadResult
+ * Interface for Mse script execution results.
+ */
+export interface IMseLoadResult {
+
+    /**
+     * ***content*** : Output content after script execution.
+     */
+    content: string,
+
+    /**
+     * ***data***: Return value after execution as external script.
+     */
+    data: any,
+}
+
+ /**
+ * ### Mse (Minuet-Script-Engine)
+ * A lightweight and highly functional template engine aimed at replacing PHP..
+ */
 export class Mse {
 
     private tagStart : string = "<?";
@@ -75,31 +159,61 @@ export class Mse {
     private modules : Array<string> = [];
     private pages : IMseOptionPage = {};
     
-    public constructor(options? : MseOption){
-        if (options.tagStart){
-            this.tagStart = options.tagStart;
-        }
-        if (options.tagEnd){
-            this.tagEnd = options.tagEnd;
-        }
-        if (options.ext){
-            this.ext = options.ext;
-        }
-        if (options.extHide){
-            this.extHide = options.extHide;
-        }
-        if (options.rootDir) {
-            this.rootDir = options.rootDir;
-            this.setRootDirectory(this.rootDir);
-        }
-        if (options.modules){
-            this.modules = options.modules;
-        }
-        if (options.pages){
-            this.pages = options.pages;
-        }
+    /**
+     * ### constructor
+     * @param {IMseOption} options Option Settings  
+     */
+    public constructor(options? : IMseOption){
+        if (options.tagStart)  this.tagStart = options.tagStart;
+        if (options.tagEnd) this.tagEnd = options.tagEnd;
+        if (options.ext) this.ext = options.ext;
+        if (options.extHide) this.extHide = options.extHide;
+        if (options.rootDir) this.rootDir = options.rootDir;
+        if (options.modules) this.modules = options.modules;
+        if (options.pages) this.pages = options.pages;
+        this.updateRootDirectory();
     }
 
+    /**
+     * ### resetBuffer
+     * Delete the contents of the buffer.
+     * @returns {Mse}
+     */
+    public resetBuffer(){
+        this.buffers = {};
+        return this;
+    }
+
+    /**
+     * ### addBuffer
+     * Manually save to a buffer with a specified file name.
+     * @param {string} fileName File Name
+     * @param {string} content File Content
+     * @returns {Mse} 
+     */
+    public addBuffer(fileName : string, content : string) : Mse {
+        const converted = this.convert(content);
+        this.buffers[fileName] = converted;
+        return this;
+    }
+
+    /**
+     * ### remoteBuffer
+     * Delete the buffer with the specified file name.
+     * @param {string} fileName File Name
+     * @returns {Mse}
+     */
+    public removeBuffer(fileName: string){
+        delete this.buffers[fileName];
+        return this;
+    }
+
+    /**
+     * ### setRootDirectory
+     * Automatically loads MSE script files in the specified root directory and stores them in a buffer.
+     * @param {string} rootDir Root Directory
+     * @returns {Mse}
+     */
     public setRootDirectory(rootDir : string) : Mse {
         this.buffers = {};
         const lists = this.search(rootDir);
@@ -111,19 +225,47 @@ export class Mse {
             const name = filePath.substring(rootDir.length);
             this.buffers[name] = converted;
         }
+
+        if(this.pages){
+            if(this.pages.notFound){
+                const content = fs.readFileSync(this.pages.notFound).toString();
+                this.addBuffer(MseIregularPageName.notFound,  content);
+            }
+            if(this.pages.InternalError){
+                const content = fs.readFileSync(this.pages.InternalError).toString();
+                this.addBuffer(MseIregularPageName.internalError,  content);
+            }    
+        }
+
         return this;
     }
 
-    public updateBuffer() : Mse {
-        this.setRootDirectory(this.rootDir);
+    /**
+     * ### updateRootDirectory
+     * Updates the buffer information for the specified root directory.
+     * @returns {Mse}
+     */
+    public updateRootDirectory() : Mse {
+        if (this.rootDir){
+            this.setRootDirectory(this.rootDir);
+        }
         return this;
     }
 
-    public async load(target : string, sandbox? : SandBox){
+    /**
+     * ### load
+     * Gets a buffer from the specified file name, executes the script, and outputs the results.
+     * @param {string} target Target File Name
+     * @param {SandBox} sandbox Sandbox environment for script execution
+     * @returns {promises<IMseLoadResult>} 
+     */
+    public async load(target : string, sandbox? : SandBox) : Promise<IMseLoadResult> {
         if(target[0] != "/"){
             target = "/" + target;
         }
         if (!this.buffers[target]){
+            console.log(this.buffers);
+            console.log(target);
             throw Error("Page not found.");
         }
         const text = this.buffers[target];
@@ -152,18 +294,76 @@ export class Mse {
         return sandbox;
     }
 
+    /**
+     * ### listen
+     * A method for publishing Mse files in the root directory to the server.
+     * @param {IncomingMessage} req ServerRequest
+     * @param {ServerResponse} res  ServerResponse
+     */
+    public async listen(req : IncomingMessage, res : ServerResponse);
+
+    /**
+     * ### listen
+     * A method for publishing Mse files in the root directory to the server.
+     * @param {IncomingMessage} req 
+     * @param {ServerResponse} res 
+     * @param {SandBox} sandbox?
+     */
+    public async listen(req : IncomingMessage, res : ServerResponse, sandbox: SandBox);
+
     public async listen(req : IncomingMessage, res : ServerResponse, sandbox? : SandBox) {
+        if (!sandbox){
+            sandbox = this.setSandBox();
+        }
         const urls = req.url.split("?");
         let url = urls[0];
         if (url[url.length - 1] == "/") {
             url = url + "index";
         }
         url = url + this.ext;
-
-        if (!this.buffers[url]) {
-            throw new MseError(404, "page not found.");
+        if(!this.buffers[url]){
+            url = urls[0] + "/index" + this.ext;
         }
-        return await this.load(url, sandbox);
+        url = url.split("//").join("/");
+
+        try{
+            if (!this.buffers[url]) {
+                throw new MseError(MssIregularPageCode.notFound, "page not found.", {
+                    fileName: url,
+                });
+            }
+            
+            const result : IMseLoadResult= await this.load(url, sandbox);
+
+            res.write(result.content);
+            res.end();    
+
+        } catch(error){
+            res.statusCode = MssIregularPageCode.internalError;
+            if(error instanceof MseError) {
+                res.statusCode = error.statusCode;
+                if (this.pages.notFound) {
+                    let result : IMseLoadResult;
+                    sandbox.exception = error;
+                    try{
+                        if (error.statusCode == MssIregularPageCode.notFound) {
+                            result = await this.load(MseIregularPageName.notFound, sandbox);
+                        }
+                        else {
+                            result = await this.load(MseIregularPageName.internalError, sandbox);
+                        }    
+                        res.write(result.content);
+                        res.end();    
+                        return;
+                    }catch(error){
+                        res.write(error.message + "\n");
+                    }
+                }
+            }
+
+            res.write(error.toString());
+            res.end();    
+        }
     }
 
     private search(target : string) {
@@ -174,9 +374,8 @@ export class Mse {
 
         for (let n = 0 ; n < lists.length ; n++){
             const list = lists[n];
-
             if (list.isDirectory()){
-                const buffer = this.search(list.parentPath + "/" + list.name);
+                const buffer = this.search(list.path + "/" + list.name);
                 for (let n2 = 0 ; n2 < buffer.length ; n2++){
                     const b_ = buffer[n2];
                     res.push(b_);
@@ -241,7 +440,7 @@ export class Mse {
         return await this.sandbox("anonymous", this.convert(text), sandbox);
     }
 
-    private async sandbox(___FILENAME : string, ___TEXT : string, ___SANDBOX : SandBox){
+    private async sandbox(___FILENAME : string, ___TEXT : string, ___SANDBOX : SandBox) : Promise<IMseLoadResult>{
 
         const ___CONTEXT = this;
 
@@ -308,14 +507,18 @@ export class Mse {
 
             try {
                 resData = await eval("(async ()=>{" + ___TEXT + "})();");
-            }catch( error){
-                throw new MseError(500, error.message);
+            }catch(error){
+                throw new MseError(500, error.message, {
+                    fileName : ___FILENAME,                    
+                });
             }
 
-            return {
+            const result : IMseLoadResult = {
                 data: resData,
                 content:  ___BODY,
             };
+
+            return result;
 
         }).bind(___SANDBOX)();
 

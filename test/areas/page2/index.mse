@@ -1,0 +1,9 @@
+<? await include("common/header.mseh"); ?>
+
+<div class="content">
+   <h2>Page2 Content...</h2>
+    <p>Text Sample Text Sample Text Sample Text Sample Text Sample Text Sample ....</p>
+    <p><a onclick="history.back()">Back</a></p>
+</div>
+
+<? await include("common/footer.mseh"); ?>

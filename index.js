@@ -1,4 +1,27 @@
 "use strict";
+/**
+ * MIT License
+ *
+ * Copyright (c) 2024 Masato Nakatsuji
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -9,30 +32,45 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Mse = exports.MseError = exports.SandBox = void 0;
+exports.Mse = exports.MseError = exports.MssIregularPageCode = exports.SandBox = void 0;
 const fs = require("fs");
 const path = require("path");
 class SandBox {
 }
 exports.SandBox = SandBox;
+var MssIregularPageCode;
+(function (MssIregularPageCode) {
+    MssIregularPageCode[MssIregularPageCode["notFound"] = 404] = "notFound";
+    MssIregularPageCode[MssIregularPageCode["internalError"] = 500] = "internalError";
+})(MssIregularPageCode || (exports.MssIregularPageCode = MssIregularPageCode = {}));
+var MseIregularPageName;
+(function (MseIregularPageName) {
+    MseIregularPageName["notFound"] = "/#notfound";
+    MseIregularPageName["internalError"] = "/#internalerror";
+})(MseIregularPageName || (MseIregularPageName = {}));
 class MseError extends Error {
-    constructor(statusCode, errorMessage, body) {
+    constructor(statusCode, errorMessage, option) {
         super(errorMessage);
-        this._body = "";
         this._statusCode = statusCode;
-        if (body) {
-            this._body = body;
-        }
+        this._option = option;
     }
     get statusCode() {
         return this._statusCode;
     }
-    get body() {
-        return this._body;
+    get option() {
+        return this._option;
     }
 }
 exports.MseError = MseError;
+/**
+* ### Mse (Minuet-Script-Engine)
+* A lightweight and highly functional template engine aimed at replacing PHP..
+*/
 class Mse {
+    /**
+     * ### constructor
+     * @param {IMseOption} options Option Settings
+     */
     constructor(options) {
         this.tagStart = "<?";
         this.tagEnd = "?>";
@@ -41,26 +79,59 @@ class Mse {
         this.buffers = {};
         this.modules = [];
         this.pages = {};
-        if (options.tagStart) {
+        if (options.tagStart)
             this.tagStart = options.tagStart;
-        }
-        if (options.tagEnd) {
+        if (options.tagEnd)
             this.tagEnd = options.tagEnd;
-        }
-        if (options.ext) {
+        if (options.ext)
             this.ext = options.ext;
-        }
-        if (options.extHide) {
+        if (options.extHide)
             this.extHide = options.extHide;
-        }
-        if (options.rootDir) {
+        if (options.rootDir)
             this.rootDir = options.rootDir;
-            this.setRootDirectory(this.rootDir);
-        }
-        if (options.modules) {
+        if (options.modules)
             this.modules = options.modules;
-        }
+        if (options.pages)
+            this.pages = options.pages;
+        this.updateRootDirectory();
     }
+    /**
+     * ### resetBuffer
+     * Delete the contents of the buffer.
+     * @returns {Mse}
+     */
+    resetBuffer() {
+        this.buffers = {};
+        return this;
+    }
+    /**
+     * ### addBuffer
+     * Manually save to a buffer with a specified file name.
+     * @param {string} fileName File Name
+     * @param {string} content File Content
+     * @returns {Mse}
+     */
+    addBuffer(fileName, content) {
+        const converted = this.convert(content);
+        this.buffers[fileName] = converted;
+        return this;
+    }
+    /**
+     * ### remoteBuffer
+     * Delete the buffer with the specified file name.
+     * @param {string} fileName File Name
+     * @returns {Mse}
+     */
+    removeBuffer(fileName) {
+        delete this.buffers[fileName];
+        return this;
+    }
+    /**
+     * ### setRootDirectory
+     * Automatically loads MSE script files in the specified root directory and stores them in a buffer.
+     * @param {string} rootDir Root Directory
+     * @returns {Mse}
+     */
     setRootDirectory(rootDir) {
         this.buffers = {};
         const lists = this.search(rootDir);
@@ -72,18 +143,44 @@ class Mse {
             const name = filePath.substring(rootDir.length);
             this.buffers[name] = converted;
         }
+        if (this.pages) {
+            if (this.pages.notFound) {
+                const content = fs.readFileSync(this.pages.notFound).toString();
+                this.addBuffer(MseIregularPageName.notFound, content);
+            }
+            if (this.pages.InternalError) {
+                const content = fs.readFileSync(this.pages.InternalError).toString();
+                this.addBuffer(MseIregularPageName.internalError, content);
+            }
+        }
         return this;
     }
-    updateBuffer() {
-        this.setRootDirectory(this.rootDir);
+    /**
+     * ### updateRootDirectory
+     * Updates the buffer information for the specified root directory.
+     * @returns {Mse}
+     */
+    updateRootDirectory() {
+        if (this.rootDir) {
+            this.setRootDirectory(this.rootDir);
+        }
         return this;
     }
+    /**
+     * ### load
+     * Gets a buffer from the specified file name, executes the script, and outputs the results.
+     * @param {string} target Target File Name
+     * @param {SandBox} sandbox Sandbox environment for script execution
+     * @returns {promises<IMseLoadResult>}
+     */
     load(target, sandbox) {
         return __awaiter(this, void 0, void 0, function* () {
             if (target[0] != "/") {
                 target = "/" + target;
             }
             if (!this.buffers[target]) {
+                console.log(this.buffers);
+                console.log(target);
                 throw Error("Page not found.");
             }
             const text = this.buffers[target];
@@ -114,6 +211,9 @@ class Mse {
     }
     listen(req, res, sandbox) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!sandbox) {
+                sandbox = this.setSandBox();
+            }
             const urls = req.url.split("?");
             let url = urls[0];
             if (url[url.length - 1] == "/") {
@@ -121,9 +221,45 @@ class Mse {
             }
             url = url + this.ext;
             if (!this.buffers[url]) {
-                throw new MseError(404, "page not found.");
+                url = urls[0] + "/index" + this.ext;
             }
-            return yield this.load(url, sandbox);
+            url = url.split("//").join("/");
+            try {
+                if (!this.buffers[url]) {
+                    throw new MseError(MssIregularPageCode.notFound, "page not found.", {
+                        fileName: url,
+                    });
+                }
+                const result = yield this.load(url, sandbox);
+                res.write(result.content);
+                res.end();
+            }
+            catch (error) {
+                res.statusCode = MssIregularPageCode.internalError;
+                if (error instanceof MseError) {
+                    res.statusCode = error.statusCode;
+                    if (this.pages.notFound) {
+                        let result;
+                        sandbox.exception = error;
+                        try {
+                            if (error.statusCode == MssIregularPageCode.notFound) {
+                                result = yield this.load(MseIregularPageName.notFound, sandbox);
+                            }
+                            else {
+                                result = yield this.load(MseIregularPageName.internalError, sandbox);
+                            }
+                            res.write(result.content);
+                            res.end();
+                            return;
+                        }
+                        catch (error) {
+                            res.write(error.message + "\n");
+                        }
+                    }
+                }
+                res.write(error.toString());
+                res.end();
+            }
         });
     }
     search(target) {
@@ -134,7 +270,7 @@ class Mse {
         for (let n = 0; n < lists.length; n++) {
             const list = lists[n];
             if (list.isDirectory()) {
-                const buffer = this.search(list.parentPath + "/" + list.name);
+                const buffer = this.search(list.path + "/" + list.name);
                 for (let n2 = 0; n2 < buffer.length; n2++) {
                     const b_ = buffer[n2];
                     res.push(b_);
@@ -247,12 +383,15 @@ class Mse {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");
                     }
                     catch (error) {
-                        throw new MseError(500, error.message, ___BODY);
+                        throw new MseError(500, error.message, {
+                            fileName: ___FILENAME,
+                        });
                     }
-                    return {
+                    const result = {
                         data: resData,
                         content: ___BODY,
                     };
+                    return result;
                 });
             }).bind(___SANDBOX)();
             return res;
