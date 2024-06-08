@@ -1,1 +1,0 @@
-<? throw new MseError(500, "Error Test!?"); ?>

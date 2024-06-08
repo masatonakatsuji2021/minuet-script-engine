@@ -2,11 +2,14 @@ import { Mse } from "../";
 import * as http from "http";
 
 const mse = new Mse({
-    rootDir: "areas",
+    rootDir: "htdocs",
     pages: {
-        notFound: "errorpages/404.mse",
-        InternalError: "errorpages/500.mse",
-    }
+        notFound: "error/404.mse",
+        InternalError: "error/500.mse",
+    },
+    modules : [
+        "CodeCache",
+    ],
 });
 
 const h = http.createServer(async (req, res)=>{

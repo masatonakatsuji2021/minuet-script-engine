@@ -40,13 +40,25 @@ class SandBox {
 exports.SandBox = SandBox;
 var MssIregularPageCode;
 (function (MssIregularPageCode) {
+    MssIregularPageCode[MssIregularPageCode["badRequest"] = 400] = "badRequest";
+    MssIregularPageCode[MssIregularPageCode["unauthorized"] = 401] = "unauthorized";
+    MssIregularPageCode[MssIregularPageCode["paymentRequired"] = 402] = "paymentRequired";
+    MssIregularPageCode[MssIregularPageCode["forbidden"] = 403] = "forbidden";
     MssIregularPageCode[MssIregularPageCode["notFound"] = 404] = "notFound";
+    MssIregularPageCode[MssIregularPageCode["methodNotAllowed"] = 405] = "methodNotAllowed";
     MssIregularPageCode[MssIregularPageCode["internalError"] = 500] = "internalError";
+    MssIregularPageCode[MssIregularPageCode["notImplemented"] = 501] = "notImplemented";
 })(MssIregularPageCode || (exports.MssIregularPageCode = MssIregularPageCode = {}));
 var MseIregularPageName;
 (function (MseIregularPageName) {
+    MseIregularPageName["badRequest"] = "/#badRequest";
+    MseIregularPageName["unauthorized"] = "/#unauthorized";
+    MseIregularPageName["paymentRequired"] = "/#paymentRequired";
+    MseIregularPageName["forbidden"] = "/#forbidden";
     MseIregularPageName["notFound"] = "/#notfound";
+    MseIregularPageName["methodNotAllowed"] = "/#methodNotAllowed";
     MseIregularPageName["internalError"] = "/#internalerror";
+    MseIregularPageName["notImplemented"] = "/#notImplemented";
 })(MseIregularPageName || (MseIregularPageName = {}));
 class MseError extends Error {
     constructor(statusCode, errorMessage, option) {
@@ -72,13 +84,38 @@ class Mse {
      * @param {IMseOption} options Option Settings
      */
     constructor(options) {
+        /**
+         * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+         */
         this.tagStart = "<?";
+        /**
+         * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+         */
         this.tagEnd = "?>";
+        /**
+         * ***ext*** : The extension of the script file that corresponds to MSE
+         * when automatically loading a buffer by specifying the root directory.
+         * If not specified, the default is ``.mse``,
+         */
         this.ext = ".mse";
+        /**
+         * ***extHide*** : The extension of the script file that supports MSE
+         * when automatically loading a buffer by specifying the root directory.
+         * If the file has this extension, server access will be denied.
+         *
+         *  If not specified, the default is ``.mseh``,
+         */
         this.extHide = ".mseh";
-        this.buffers = {};
+        /**
+         * ***modules*** : List of modules to use for the extension.
+         */
         this.modules = [];
+        /**
+         * ***pages*** : Page information to display on behalf of irregular request results
+         * For details, see ***IMseOptionPage***.
+         */
         this.pages = {};
+        this.buffers = {};
         if (options.tagStart)
             this.tagStart = options.tagStart;
         if (options.tagEnd)
@@ -316,12 +353,20 @@ class Mse {
         }
         return convertScriptStr;
     }
-    direct(text, sandbox) {
+    /**
+     * ### execute
+     * Execute a script by specifying the code directly.
+     * This method does not use the buffer function.
+     * @param {string} scriptCode Script Code
+     * @param {SandBox} sandbox SandBox
+     * @returns {Promise<IMseLoadResult>}
+     */
+    execute(scriptCode, sandbox) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!sandbox) {
                 sandbox = this.setSandBox();
             }
-            return yield this.sandbox("anonymous", this.convert(text), sandbox);
+            return yield this.sandbox("anonymous", this.convert(scriptCode), sandbox);
         });
     }
     sandbox(___FILENAME, ___TEXT, ___SANDBOX) {
@@ -379,6 +424,9 @@ class Mse {
                         ___BODY += addBody.content;
                         return addBody.data;
                     });
+                    const bufferRefresh = () => {
+                        ___CONTEXT.updateRootDirectory();
+                    };
                     try {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");
                     }

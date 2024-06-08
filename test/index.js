@@ -12,11 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const __1 = require("../");
 const http = require("http");
 const mse = new __1.Mse({
-    rootDir: "areas",
+    rootDir: "htdocs",
     pages: {
-        notFound: "errorpages/404.mse",
-        InternalError: "errorpages/500.mse",
-    }
+        notFound: "error/404.mse",
+        InternalError: "error/500.mse",
+    },
+    modules: [
+        "CodeCache",
+    ],
 });
 const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     yield mse.listen(req, res);

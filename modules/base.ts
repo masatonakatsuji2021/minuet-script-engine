@@ -1,8 +1,9 @@
-import { SandBox } from "../";
+import {  SandBox } from "../";
 
 export class MseModuleBase {
 
-    private context : SandBox;
+    protected context : SandBox;
+
     public constructor(context : SandBox) {
         this.context = context;
     }

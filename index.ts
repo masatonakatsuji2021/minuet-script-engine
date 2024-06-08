@@ -50,13 +50,25 @@ export interface IMseOptionPage {
 }
 
 export enum MssIregularPageCode {
+    badRequest = 400,
+    unauthorized = 401,
+    paymentRequired = 402,
+    forbidden = 403,
     notFound = 404,
+    methodNotAllowed = 405,
     internalError = 500,
+    notImplemented = 501,
 }
 
 enum MseIregularPageName {
+    badRequest = "/#badRequest",
+    unauthorized = "/#unauthorized",
+    paymentRequired = "/#paymentRequired",
+    forbidden = "/#forbidden",
     notFound = "/#notfound",
+    methodNotAllowed = "/#methodNotAllowed",
     internalError = "/#internalerror",
+    notImplemented = "/#notImplemented",
 }
 
 /**
@@ -150,15 +162,51 @@ export interface IMseLoadResult {
  */
 export class Mse {
 
-    private tagStart : string = "<?";
-    private tagEnd : string = "?>";
-    private ext : string = ".mse";
-    private extHide : string = ".mseh";
-    private rootDir: string;
-    private buffers = {};
-    private modules : Array<string> = [];
-    private pages : IMseOptionPage = {};
+    /**
+     * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+     */
+    public tagStart : string = "<?";
+
+    /**
+     * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+     */
+    public tagEnd : string = "?>";
+
+    /**
+     * ***ext*** : The extension of the script file that corresponds to MSE   
+     * when automatically loading a buffer by specifying the root directory.  
+     * If not specified, the default is ``.mse``,
+     */
+    public ext : string = ".mse";
+
+    /**
+     * ***extHide*** : The extension of the script file that supports MSE   
+     * when automatically loading a buffer by specifying the root directory.   
+     * If the file has this extension, server access will be denied.  
+     * 
+     *  If not specified, the default is ``.mseh``,
+     */
+    public extHide : string = ".mseh";
+
+    /**
+     * ***rootDir*** : Path of the root directory to automatically load the buffer.   
+     * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
+     */
+    public rootDir: string;
+
+    /**
+     * ***modules*** : List of modules to use for the extension.
+     */
+    public modules : Array<string> = [];
+
+    /**
+     * ***pages*** : Page information to display on behalf of irregular request results    
+     * For details, see ***IMseOptionPage***.
+     */
+    public pages : IMseOptionPage = {};
     
+    private buffers = {};
+
     /**
      * ### constructor
      * @param {IMseOption} options Option Settings  
@@ -406,7 +454,7 @@ export class Mse {
         return "eb64( \"" + Mse.base64Encode(text) + "\", " + line + ");";
     }
 
-    public convert(scriptCode : string){
+    private convert(scriptCode : string){
         let convertScriptStr : string = "";
 
         const sc1 = scriptCode.split(this.tagStart);
@@ -433,11 +481,19 @@ export class Mse {
         return convertScriptStr;
     }
 
-    public async direct(text : string, sandbox? : SandBox){
+    /**
+     * ### execute
+     * Execute a script by specifying the code directly.   
+     * This method does not use the buffer function.
+     * @param {string} scriptCode Script Code 
+     * @param {SandBox} sandbox SandBox
+     * @returns {Promise<IMseLoadResult>}
+     */
+    public async execute(scriptCode : string, sandbox? : SandBox) : Promise<IMseLoadResult> {
         if (!sandbox){
             sandbox = this.setSandBox();
         }
-        return await this.sandbox("anonymous", this.convert(text), sandbox);
+        return await this.sandbox("anonymous", this.convert(scriptCode), sandbox);
     }
 
     private async sandbox(___FILENAME : string, ___TEXT : string, ___SANDBOX : SandBox) : Promise<IMseLoadResult>{
@@ -495,7 +551,7 @@ export class Mse {
 
             const async = (handle : Function)=>{
                 return new Promise((resolve)=>{
-                    handle(resolve);                    
+                    handle(resolve);
                 });
             };
 
@@ -503,6 +559,10 @@ export class Mse {
                 const addBody = await ___CONTEXT.load(target, ___SANDBOX);
                 ___BODY += addBody.content;
                 return addBody.data;
+            };
+
+            const bufferRefresh = ()=>{
+                ___CONTEXT.updateRootDirectory();
             };
 
             try {
