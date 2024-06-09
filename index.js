@@ -192,14 +192,14 @@ class Mse {
         }
         return this;
     }
-    /**
-     * ### updateRootDirectory
-     * Updates the buffer information for the specified root directory.
-     * @returns {Mse}
-     */
-    updateRootDirectory() {
-        if (this.rootDir) {
-            this.setRootDirectory(this.rootDir);
+    updateRootDirectory(fileName) {
+        if (fileName) {
+            this.setRootDirectory(fileName);
+        }
+        else {
+            if (this.rootDir) {
+                this.setRootDirectory(this.rootDir);
+            }
         }
         return this;
     }
@@ -251,6 +251,8 @@ class Mse {
             if (!sandbox) {
                 sandbox = this.setSandBox();
             }
+            sandbox.req = req;
+            sandbox.res = res;
             const urls = req.url.split("?");
             let url = urls[0];
             if (url[url.length - 1] == "/") {
@@ -424,8 +426,16 @@ class Mse {
                         ___BODY += addBody.content;
                         return addBody.data;
                     });
-                    const bufferRefresh = () => {
+                    const bufferUpdateAll = () => {
                         ___CONTEXT.updateRootDirectory();
+                    };
+                    const bufferUpdate = (fileName) => {
+                        if (fileName) {
+                            ___CONTEXT.updateRootDirectory(fileName);
+                        }
+                        else {
+                            ___CONTEXT.updateRootDirectory(___FILENAME);
+                        }
                     };
                     try {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");

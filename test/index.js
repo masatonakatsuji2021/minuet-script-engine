@@ -18,7 +18,7 @@ const mse = new __1.Mse({
         InternalError: "error/500.mse",
     },
     modules: [
-        "CodeCache",
+        "http",
     ],
 });
 const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, function* () {

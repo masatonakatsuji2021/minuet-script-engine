@@ -1,1 +1,20 @@
-page3....
+<? await include("common/header.mseh"); ?>
+
+<div class="content">
+    <h2>Page3</h2>
+
+    <?
+    if (this.http.isPost) {
+        const post = await this.http.data;
+        debug(post); 
+    }
+    ?>
+
+    <form method="post" enctype2="multipart/form-data">
+        <input type="text" name="value01">
+        <input type="text" name="value02">
+        <input type="submit" value="Submit">
+    </form>
+</div>
+
+<? await include("common/footer.mseh"); ?>

@@ -293,9 +293,24 @@ export class Mse {
      * Updates the buffer information for the specified root directory.
      * @returns {Mse}
      */
-    public updateRootDirectory() : Mse {
-        if (this.rootDir){
-            this.setRootDirectory(this.rootDir);
+    public updateRootDirectory() : Mse ;
+
+    /**
+     * ### updateRootDirectory
+     * Updates the buffer information for the specified root directory.
+     * @param {string} fileName update File Name
+     * @returns {Mse}
+     */
+    public updateRootDirectory(fileName : string) : Mse ;
+
+    public updateRootDirectory(fileName? : string) : Mse {
+        if (fileName){
+            this.setRootDirectory(fileName);
+        }
+        else{
+            if (this.rootDir){
+                this.setRootDirectory(this.rootDir);
+            }    
         }
         return this;
     }
@@ -363,6 +378,8 @@ export class Mse {
         if (!sandbox){
             sandbox = this.setSandBox();
         }
+        sandbox.req = req;
+        sandbox.res = res;
         const urls = req.url.split("?");
         let url = urls[0];
         if (url[url.length - 1] == "/") {
@@ -561,8 +578,17 @@ export class Mse {
                 return addBody.data;
             };
 
-            const bufferRefresh = ()=>{
-                ___CONTEXT.updateRootDirectory();
+            const bufferUpdateAll = ()=>{
+                 ___CONTEXT.updateRootDirectory();
+            };
+
+            const bufferUpdate = (fileName : string) => {
+                if (fileName){
+                    ___CONTEXT.updateRootDirectory(fileName);
+                }
+                else {
+                    ___CONTEXT.updateRootDirectory(___FILENAME);
+                }
             };
 
             try {

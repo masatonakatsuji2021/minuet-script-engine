@@ -8,7 +8,7 @@ const mse = new Mse({
         InternalError: "error/500.mse",
     },
     modules : [
-        "CodeCache",
+        "http",
     ],
 });
 
