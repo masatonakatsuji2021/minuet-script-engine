@@ -4,5 +4,6 @@
     <p><a href="/header">header mode</a></p>
     <p><a href="/page1">page1 mode</a></p>
     <p><a href="/page2">page2 mode</a></p>
+    <p><a href="/page3">page3 mode</a></p>
 </div>
 <? await include("common/footer.mseh"); ?>

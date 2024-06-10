@@ -30,6 +30,7 @@ import { promises } from "dns";
 export  class SandBox {
     public req? : IncomingMessage;
     public res? : ServerResponse;
+    public tempDir? : string;
     [x: string] : any;
 }
 
@@ -118,6 +119,8 @@ export interface IMseOption {
      * For details, see ***IMseOptionPage***.
      */
     pages?: IMseOptionPage,
+
+    tempDir? : string,
 }
 
 export class MseError extends Error {
@@ -204,7 +207,11 @@ export class Mse {
      * For details, see ***IMseOptionPage***.
      */
     public pages : IMseOptionPage = {};
-    
+
+    /**
+     * ***tempDir*** : 
+     */
+    public tempDir? : string;
     private buffers = {};
 
     /**
@@ -219,6 +226,7 @@ export class Mse {
         if (options.rootDir) this.rootDir = options.rootDir;
         if (options.modules) this.modules = options.modules;
         if (options.pages) this.pages = options.pages;
+        if (options.tempDir) this.tempDir = options.tempDir;
         this.updateRootDirectory();
     }
 
@@ -340,6 +348,7 @@ export class Mse {
 
     private setSandBox(){
         let sandbox = new SandBox();
+        sandbox.tempDir = this.tempDir;
         // load module....
         if (this.modules) {
             for (let n = 0 ; n < this.modules.length ; n++) {
@@ -350,6 +359,7 @@ export class Mse {
                     const mbuffer = require(modulePath);
                     sandbox[moduleName] = new mbuffer[moduleClassName](sandbox);
                 }catch(error){
+                    console.log(error);
                     continue;
                 }
              }
@@ -459,11 +469,11 @@ export class Mse {
         return res;
     }
 
-    private static base64Encode(text : string){
+    public static base64Encode(text : string){
         return Buffer.from(text, "utf-8").toString("base64");
     }
 
-    private static base64Decode(textB64 : string){
+    public static base64Decode(textB64 : string){
         return Buffer.from(textB64,"base64").toString("utf-8");
     }
 
@@ -511,6 +521,27 @@ export class Mse {
             sandbox = this.setSandBox();
         }
         return await this.sandbox("anonymous", this.convert(scriptCode), sandbox);
+    }
+
+    /**
+     * ### file
+     * @param filePath 
+     */
+    public async file(filePath : string) : Promise<IMseLoadResult>;
+
+    /**
+     * ### file
+     * @param filePath 
+     * @param sandbox 
+     */
+    public async file(filePath : string, sandbox : SandBox) : Promise<IMseLoadResult>;
+
+    public async file(filePath : string, sandbox? : SandBox) : Promise<IMseLoadResult> {
+        if (!sandbox){
+            sandbox = this.setSandBox();
+        }
+        const fileContent = fs.readFileSync(filePath).toString();
+        return await this.sandbox("anonymous", this.convert(fileContent), sandbox);
     }
 
     private async sandbox(___FILENAME : string, ___TEXT : string, ___SANDBOX : SandBox) : Promise<IMseLoadResult>{
@@ -591,6 +622,8 @@ export class Mse {
                 }
             };
 
+            const require = undefined;
+
             try {
                 resData = await eval("(async ()=>{" + ___TEXT + "})();");
             }catch(error){
@@ -610,5 +643,11 @@ export class Mse {
 
         return res;
     }
+}
 
+export class MseModule {
+    protected context : SandBox;
+    public constructor(context : SandBox) {
+        this.context = context;
+    }
 }

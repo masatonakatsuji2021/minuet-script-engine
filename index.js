@@ -32,7 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Mse = exports.MseError = exports.MssIregularPageCode = exports.SandBox = void 0;
+exports.MseModule = exports.Mse = exports.MseError = exports.MssIregularPageCode = exports.SandBox = void 0;
 const fs = require("fs");
 const path = require("path");
 class SandBox {
@@ -130,6 +130,8 @@ class Mse {
             this.modules = options.modules;
         if (options.pages)
             this.pages = options.pages;
+        if (options.tempDir)
+            this.tempDir = options.tempDir;
         this.updateRootDirectory();
     }
     /**
@@ -229,6 +231,7 @@ class Mse {
     }
     setSandBox() {
         let sandbox = new SandBox();
+        sandbox.tempDir = this.tempDir;
         // load module....
         if (this.modules) {
             for (let n = 0; n < this.modules.length; n++) {
@@ -240,6 +243,7 @@ class Mse {
                     sandbox[moduleName] = new mbuffer[moduleClassName](sandbox);
                 }
                 catch (error) {
+                    console.log(error);
                     continue;
                 }
             }
@@ -371,6 +375,15 @@ class Mse {
             return yield this.sandbox("anonymous", this.convert(scriptCode), sandbox);
         });
     }
+    file(filePath, sandbox) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!sandbox) {
+                sandbox = this.setSandBox();
+            }
+            const fileContent = fs.readFileSync(filePath).toString();
+            return yield this.sandbox("anonymous", this.convert(fileContent), sandbox);
+        });
+    }
     sandbox(___FILENAME, ___TEXT, ___SANDBOX) {
         return __awaiter(this, void 0, void 0, function* () {
             const ___CONTEXT = this;
@@ -437,6 +450,7 @@ class Mse {
                             ___CONTEXT.updateRootDirectory(___FILENAME);
                         }
                     };
+                    const require = undefined;
                     try {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");
                     }
@@ -457,3 +471,9 @@ class Mse {
     }
 }
 exports.Mse = Mse;
+class MseModule {
+    constructor(context) {
+        this.context = context;
+    }
+}
+exports.MseModule = MseModule;

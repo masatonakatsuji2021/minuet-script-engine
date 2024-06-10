@@ -13,12 +13,15 @@ const __1 = require("../");
 const http = require("http");
 const mse = new __1.Mse({
     rootDir: "htdocs",
+    tempDir: "temp",
     pages: {
         notFound: "error/404.mse",
         InternalError: "error/500.mse",
     },
     modules: [
         "http",
+        "file",
+        "text",
     ],
 });
 const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, function* () {

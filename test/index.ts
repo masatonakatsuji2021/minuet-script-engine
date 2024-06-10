@@ -3,12 +3,15 @@ import * as http from "http";
 
 const mse = new Mse({
     rootDir: "htdocs",
+    tempDir: "temp",
     pages: {
         notFound: "error/404.mse",
         InternalError: "error/500.mse",
     },
     modules : [
         "http",
+        "file",
+        "text",
     ],
 });
 
