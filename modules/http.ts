@@ -28,6 +28,8 @@ import * as querystring from "querystring";
 
 export class MseHttp extends MseModule {
 
+    private dataBuffer : Object;
+
     private get req(): IncomingMessage {
         if (!this.context.req){
             throw new MseError(500, "Processing was interrupted because the http.incomingMessage class was not found.");
@@ -66,6 +68,13 @@ export class MseHttp extends MseModule {
         return false;
     }
 
+    public get(name : string) : string{
+        if (this.query[name]){
+            return this.query[name];
+        }
+        return "";
+    }
+
     public get isPost() : boolean {
         if (this.req.method == "POST"){
             return true;
@@ -94,23 +103,45 @@ export class MseHttp extends MseModule {
         return false;
     }
 
+    public post(name : string) : any{
+        if (!this.dataBuffer){
+            return "";
+        }
+
+        if (this.dataBuffer[name]){
+            return this.dataBuffer[name];
+        }
+        return "";
+    }
+
     public get  data() : Promise<Object>  {
 
         return new Promise((resolve) => {
+
+            if (this.dataBuffer){
+                return resolve(this.dataBuffer);
+            }
 
             let dataStr : string = "";
             this.req.on("data", (buff)=>{
                 dataStr += buff.toString();
             });
             this.req.on("end", ()=>{
-                const type = this.req.headers["content-type"];
+                let type = this.req.headers["content-type"];
+                if(!type){
+                    type = "application/x-www-form-urlencoded";
+                }
+                let result;
                 if (type.indexOf("multipart/form-data") > -1){
-                    resolve(dataStr);
+                    result = dataStr;
                 }
                 else {
                     const dataStrBuffer = decodeURIComponent(dataStr);
-                    resolve(querystring.parse(dataStrBuffer));
+                    result = querystring.parse(dataStrBuffer);
                 }
+
+                this.dataBuffer = result;
+                resolve(this.dataBuffer);
             });
         });
     }

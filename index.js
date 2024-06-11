@@ -36,6 +36,9 @@ exports.MseModule = exports.Mse = exports.MseError = exports.MssIregularPageCode
 const fs = require("fs");
 const path = require("path");
 class SandBox {
+    constructor() {
+        this.___BODY = "";
+    }
 }
 exports.SandBox = SandBox;
 var MssIregularPageCode;
@@ -111,11 +114,23 @@ class Mse {
          */
         this.modules = [];
         /**
+         * ***moduleOptions*** :
+         */
+        this.moduleOptions = {};
+        /**
          * ***pages*** : Page information to display on behalf of irregular request results
          * For details, see ***IMseOptionPage***.
          */
         this.pages = {};
         this.buffers = {};
+        this.setting(options);
+    }
+    /**
+     * ### settings
+     * @param options
+     * @returns
+     */
+    setting(options) {
         if (options.tagStart)
             this.tagStart = options.tagStart;
         if (options.tagEnd)
@@ -128,11 +143,12 @@ class Mse {
             this.rootDir = options.rootDir;
         if (options.modules)
             this.modules = options.modules;
+        if (options.moduleOptions)
+            this.moduleOptions = options.moduleOptions;
         if (options.pages)
             this.pages = options.pages;
-        if (options.tempDir)
-            this.tempDir = options.tempDir;
         this.updateRootDirectory();
+        return this;
     }
     /**
      * ### resetBuffer
@@ -229,18 +245,22 @@ class Mse {
             return yield this.sandbox(target, text, sandbox);
         });
     }
+    /**
+     * ## setSandBox
+     * @returns {SandBox} SandBox
+     */
     setSandBox() {
         let sandbox = new SandBox();
-        sandbox.tempDir = this.tempDir;
         // load module....
         if (this.modules) {
             for (let n = 0; n < this.modules.length; n++) {
                 const moduleName = this.modules[n];
+                const moduleOption = this.moduleOptions[moduleName];
                 const modulePath = "./modules/" + moduleName;
                 const moduleClassName = "Mse" + moduleName.substring(0, 1).toUpperCase() + moduleName.substring(1);
                 try {
                     const mbuffer = require(modulePath);
-                    sandbox[moduleName] = new mbuffer[moduleClassName](sandbox);
+                    sandbox[moduleName] = new mbuffer[moduleClassName](sandbox, moduleOption);
                 }
                 catch (error) {
                     console.log(error);
@@ -353,9 +373,11 @@ class Mse {
             const length = sc2[0].match(/\n/g);
             line += length ? length.length - 1 : 0;
             convertScriptStr += sc2[0];
-            const length2 = sc2[1].match(/\n/g);
-            line += length2 ? length2.length - 1 : 0;
-            convertScriptStr += Mse.echoBase64(sc2[1], line);
+            if (sc2[1]) {
+                const length2 = sc2[1].match(/\n/g);
+                line += length2 ? length2.length - 1 : 0;
+                convertScriptStr += Mse.echoBase64(sc2[1], line);
+            }
         }
         return convertScriptStr;
     }
@@ -390,17 +412,16 @@ class Mse {
             let resData;
             const res = yield (function () {
                 return __awaiter(this, void 0, void 0, function* () {
-                    let ___BODY = "";
                     let ___LINE = 0;
                     const eb64 = (text, line) => {
-                        ___BODY += Mse.base64Decode(text);
+                        ___SANDBOX.___BODY += Mse.base64Decode(text);
                         ___LINE = line;
                     };
                     const echo = (text) => {
                         if (text == undefined) {
-                            throw Error("echo text is undefined.");
+                            text = "";
                         }
-                        ___BODY += text;
+                        ___SANDBOX.___BODY += text;
                     };
                     const debug = (data) => {
                         let line;
@@ -436,13 +457,12 @@ class Mse {
                     };
                     const include = (target) => __awaiter(this, void 0, void 0, function* () {
                         const addBody = yield ___CONTEXT.load(target, ___SANDBOX);
-                        ___BODY += addBody.content;
                         return addBody.data;
                     });
-                    const bufferUpdateAll = () => {
+                    const scriptUpdateBuffer = () => {
                         ___CONTEXT.updateRootDirectory();
                     };
-                    const bufferUpdate = (fileName) => {
+                    const scriptUpdateBufferToFile = (fileName) => {
                         if (fileName) {
                             ___CONTEXT.updateRootDirectory(fileName);
                         }
@@ -451,6 +471,8 @@ class Mse {
                         }
                     };
                     const require = undefined;
+                    const path = undefined;
+                    const fs = undefined;
                     try {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");
                     }
@@ -461,7 +483,7 @@ class Mse {
                     }
                     const result = {
                         data: resData,
-                        content: ___BODY,
+                        content: ___SANDBOX.___BODY,
                     };
                     return result;
                 });
@@ -472,8 +494,12 @@ class Mse {
 }
 exports.Mse = Mse;
 class MseModule {
-    constructor(context) {
+    constructor(context, options) {
+        this.options = {};
         this.context = context;
+        if (options) {
+            this.options = options;
+        }
     }
 }
 exports.MseModule = MseModule;

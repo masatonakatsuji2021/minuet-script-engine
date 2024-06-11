@@ -67,6 +67,12 @@ class MseHttp extends __1.MseModule {
         }
         return false;
     }
+    get(name) {
+        if (this.query[name]) {
+            return this.query[name];
+        }
+        return "";
+    }
     get isPost() {
         if (this.req.method == "POST") {
             return true;
@@ -91,21 +97,39 @@ class MseHttp extends __1.MseModule {
         }
         return false;
     }
+    post(name) {
+        if (!this.dataBuffer) {
+            return "";
+        }
+        if (this.dataBuffer[name]) {
+            return this.dataBuffer[name];
+        }
+        return "";
+    }
     get data() {
         return new Promise((resolve) => {
+            if (this.dataBuffer) {
+                return resolve(this.dataBuffer);
+            }
             let dataStr = "";
             this.req.on("data", (buff) => {
                 dataStr += buff.toString();
             });
             this.req.on("end", () => {
-                const type = this.req.headers["content-type"];
+                let type = this.req.headers["content-type"];
+                if (!type) {
+                    type = "application/x-www-form-urlencoded";
+                }
+                let result;
                 if (type.indexOf("multipart/form-data") > -1) {
-                    resolve(dataStr);
+                    result = dataStr;
                 }
                 else {
                     const dataStrBuffer = decodeURIComponent(dataStr);
-                    resolve(querystring.parse(dataStrBuffer));
+                    result = querystring.parse(dataStrBuffer);
                 }
+                this.dataBuffer = result;
+                resolve(this.dataBuffer);
             });
         });
     }

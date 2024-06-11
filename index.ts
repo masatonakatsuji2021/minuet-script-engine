@@ -30,6 +30,7 @@ import { promises } from "dns";
 export  class SandBox {
     public req? : IncomingMessage;
     public res? : ServerResponse;
+    public ___BODY : string = "";
     public tempDir? : string;
     [x: string] : any;
 }
@@ -115,12 +116,15 @@ export interface IMseOption {
     modules? : Array<string>,
 
     /**
+     * ***moduleOptions*** : 
+     */
+    moduleOptions? : Object,
+
+    /**
      * ***pages*** : Page information to display on behalf of irregular request results    
      * For details, see ***IMseOptionPage***.
      */
     pages?: IMseOptionPage,
-
-    tempDir? : string,
 }
 
 export class MseError extends Error {
@@ -203,15 +207,16 @@ export class Mse {
     public modules : Array<string> = [];
 
     /**
+     * ***moduleOptions*** : 
+     */
+    public moduleOptions : Object = {};
+
+    /**
      * ***pages*** : Page information to display on behalf of irregular request results    
      * For details, see ***IMseOptionPage***.
      */
     public pages : IMseOptionPage = {};
 
-    /**
-     * ***tempDir*** : 
-     */
-    public tempDir? : string;
     private buffers = {};
 
     /**
@@ -219,15 +224,25 @@ export class Mse {
      * @param {IMseOption} options Option Settings  
      */
     public constructor(options? : IMseOption){
+        this.setting(options);
+    }
+
+    /**
+     * ### settings
+     * @param options 
+     * @returns 
+     */
+    public setting(options? : IMseOption) : Mse {
         if (options.tagStart)  this.tagStart = options.tagStart;
         if (options.tagEnd) this.tagEnd = options.tagEnd;
         if (options.ext) this.ext = options.ext;
         if (options.extHide) this.extHide = options.extHide;
         if (options.rootDir) this.rootDir = options.rootDir;
         if (options.modules) this.modules = options.modules;
+        if (options.moduleOptions) this.moduleOptions = options.moduleOptions;
         if (options.pages) this.pages = options.pages;
-        if (options.tempDir) this.tempDir = options.tempDir;
-        this.updateRootDirectory();
+        this.updateBuffer();
+        return this;
     }
 
     /**
@@ -297,21 +312,21 @@ export class Mse {
     }
 
     /**
-     * ### updateRootDirectory
+     * ### updateBuffer
      * Updates the buffer information for the specified root directory.
      * @returns {Mse}
      */
-    public updateRootDirectory() : Mse ;
+    public updateBuffer() : Mse ;
 
     /**
-     * ### updateRootDirectory
+     * ### updateBuffer
      * Updates the buffer information for the specified root directory.
      * @param {string} fileName update File Name
      * @returns {Mse}
      */
-    public updateRootDirectory(fileName : string) : Mse ;
+    public updateBuffer(fileName : string) : Mse ;
 
-    public updateRootDirectory(fileName? : string) : Mse {
+    public updateBuffer(fileName? : string) : Mse {
         if (fileName){
             this.setRootDirectory(fileName);
         }
@@ -346,18 +361,22 @@ export class Mse {
         return await this.sandbox(target, text, sandbox);
     }
 
-    private setSandBox(){
+    /**
+     * ## setSandBox
+     * @returns {SandBox} SandBox
+     */
+    public setSandBox(){
         let sandbox = new SandBox();
-        sandbox.tempDir = this.tempDir;
         // load module....
         if (this.modules) {
             for (let n = 0 ; n < this.modules.length ; n++) {
                 const moduleName = this.modules[n];
+                const moduleOption = this.moduleOptions[moduleName];
                 const modulePath = "./modules/" + moduleName;
                 const moduleClassName = "Mse" + moduleName.substring(0,1).toUpperCase() + moduleName.substring(1);
                 try{
                     const mbuffer = require(modulePath);
-                    sandbox[moduleName] = new mbuffer[moduleClassName](sandbox);
+                    sandbox[moduleName] = new mbuffer[moduleClassName](sandbox, moduleOption);
                 }catch(error){
                     console.log(error);
                     continue;
@@ -500,9 +519,11 @@ export class Mse {
             const length = sc2[0].match(/\n/g);
             line += length ? length.length -1 : 0;
             convertScriptStr += sc2[0];
-            const length2 = sc2[1].match(/\n/g);
-            line += length2 ? length2.length -1 : 0;
-            convertScriptStr += Mse.echoBase64( sc2[1], line);
+            if (sc2[1]){
+                const length2 = sc2[1].match(/\n/g);
+                line += length2 ? length2.length -1 : 0;
+                convertScriptStr += Mse.echoBase64( sc2[1], line);    
+            }
         }
 
         return convertScriptStr;
@@ -552,19 +573,18 @@ export class Mse {
 
         const res = await (async function(){
 
-            let ___BODY : string = "";
             let ___LINE : number = 0;
 
             const eb64 = (text : string, line : number) => {
-                ___BODY += Mse.base64Decode(text);
+                ___SANDBOX.___BODY += Mse.base64Decode(text);
                 ___LINE = line;
             };
 
             const echo = (text : string) => {
                 if (text == undefined){
-                    throw Error("echo text is undefined.");
+                    text = "";
                 }
-                ___BODY += text;
+                ___SANDBOX.___BODY += text;
             };
 
             const debug = (data : any) => {
@@ -605,24 +625,25 @@ export class Mse {
 
             const include = async (target : string)=>{
                 const addBody = await ___CONTEXT.load(target, ___SANDBOX);
-                ___BODY += addBody.content;
                 return addBody.data;
             };
 
-            const bufferUpdateAll = ()=>{
-                 ___CONTEXT.updateRootDirectory();
+            const scriptUpdateBuffer = ()=>{
+                 ___CONTEXT.updateBuffer();
             };
 
-            const bufferUpdate = (fileName : string) => {
+            const scriptUpdateBufferToFile = (fileName : string) => {
                 if (fileName){
-                    ___CONTEXT.updateRootDirectory(fileName);
+                    ___CONTEXT.updateBuffer(fileName);
                 }
                 else {
-                    ___CONTEXT.updateRootDirectory(___FILENAME);
+                    ___CONTEXT.updateBuffer(___FILENAME);
                 }
             };
 
             const require = undefined;
+            const path = undefined;
+            const fs = undefined;
 
             try {
                 resData = await eval("(async ()=>{" + ___TEXT + "})();");
@@ -634,7 +655,7 @@ export class Mse {
 
             const result : IMseLoadResult = {
                 data: resData,
-                content:  ___BODY,
+                content:  ___SANDBOX.___BODY,
             };
 
             return result;
@@ -647,7 +668,11 @@ export class Mse {
 
 export class MseModule {
     protected context : SandBox;
-    public constructor(context : SandBox) {
+    public options : any = {};
+    public constructor(context : SandBox, options : any) {
         this.context = context;
+        if (options){
+            this.options = options;
+        }
     }
 }

@@ -4,15 +4,15 @@
     <h2>Page3</h2>
 
     <?
+    const post = await this.http.data;
     if (this.http.isPost) {
-        const post = await this.http.data;
         debug(post); 
     }
     ?>
 
-    <form method="post" enctype2="multipart/form-data">
-        <input type="text" name="value01">
-        <input type="text" name="value02">
+    <form method="post">
+        <input type="text" name="value01" value="<? echo(post.value01); ?>" >
+        <input type="text" name="value02" value="<? echo(post.value02); ?>">
         <input type="submit" value="Submit">
     </form>
 

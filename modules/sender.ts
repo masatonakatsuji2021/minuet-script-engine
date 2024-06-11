@@ -21,39 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 import { MseModule } from "../";
-import * as fs from "fs";
+import * as http from "http";
 
-export class MseFile extends MseModule {
+export class MseSender extends MseModule {
 
-    private getPath(targetPath : string) : string {
-        if (!this.options.tempDir) {
-            this.options.tempDir = "temp";
-        }
-        return this.options.tempDir + "/" + targetPath;
-    }
-
-    public mkdir(dirPath : string, options?: fs.MakeDirectoryOptions & { recursive: true; }) : string {
-        return fs.mkdirSync(this.getPath(dirPath), options);
-    }
-
-    public rmdir(dirPath : string, options?: fs.RmDirOptions) : void {
-        return fs.rmdirSync(this.getPath(dirPath), options);
-    }
-
-    public readFile(filePath : string, options?: { encoding?: null; flag?: string; }) : Buffer {
-        return fs.readFileSync(this.getPath(filePath), options);
-    }
-
-    public writeFile(filePath : string, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) : void {
-        return fs.writeFileSync(this.getPath(filePath), data, options);
-    }
-
-    public appendFile(filePath : string) {
-
+    public get(url : string, options?) {
         
     }
-
-
 }
