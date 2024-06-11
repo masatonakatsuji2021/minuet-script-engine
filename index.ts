@@ -26,6 +26,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
 import { promises } from "dns";
+import { setHeapSnapshotNearHeapLimit } from "v8";
 
 export  class SandBox {
     public req? : IncomingMessage;
@@ -409,17 +410,7 @@ export class Mse {
         }
         sandbox.req = req;
         sandbox.res = res;
-        const urls = req.url.split("?");
-        let url = urls[0];
-        if (url[url.length - 1] == "/") {
-            url = url + "index";
-        }
-        url = url + this.ext;
-        if(!this.buffers[url]){
-            url = urls[0] + "/index" + this.ext;
-        }
-        url = url.split("//").join("/");
-
+        const url = this.getUrl(req.url);
         try{
             if (!this.buffers[url]) {
                 throw new MseError(MssIregularPageCode.notFound, "page not found.", {
@@ -458,6 +449,21 @@ export class Mse {
             res.write(error.toString());
             res.end();    
         }
+    }
+
+    private getUrl(baseUrl : string) : string {
+        const urls = baseUrl.split("?");
+        let url = urls[0];      
+        if (url[url.length - 1] == "/") {
+            url = url + "index";
+        }
+        url = url + this.ext;
+        if(!this.buffers[url]){
+            url = urls[0] + "/index" + this.ext;
+        }
+        url = url.split("//").join("/");
+
+        return url;        
     }
 
     private search(target : string) {
