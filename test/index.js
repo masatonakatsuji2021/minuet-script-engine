@@ -27,3 +27,4 @@ const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, func
     yield mse.listen(req, res);
 }));
 h.listen(4851);
+console.log("listen http://localhost:4851");

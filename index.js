@@ -110,6 +110,25 @@ class Mse {
          */
         this.extHide = ".mseh";
         /**
+         * ***rootDir*** : Path of the root directory to automatically load the buffer.
+         * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
+         */
+        this.rootDir = "htdocs";
+        /**
+         * ***buffering*** : Setting whether to buffer server data.
+         * (The default is ``true``.)
+         *
+         * If you select ``true``, when you instantiate or execute the ``setting`` method,
+         * a set of files in the root directory with access permissions for each MimeType will be buffered.
+         * When listening from now on, it will be loaded from the buffer.
+         *
+         * This is done as part of the speedup.
+         * Even if a file in the root directory is changed, the display results will not be updated when listening.
+         *
+         * If you select ``false``, no buffer will be created and the script file will be loaded every time you listen.
+         */
+        this.buffering = true;
+        /**
          * ***modules*** : List of modules to use for the extension.
          */
         this.modules = [];
@@ -123,7 +142,12 @@ class Mse {
          */
         this.pages = {};
         this.buffers = {};
-        this.setting(options);
+        if (options) {
+            this.setting(options);
+        }
+        else {
+            this.updateBuffer();
+        }
     }
     /**
      * ### settings
@@ -141,13 +165,15 @@ class Mse {
             this.extHide = options.extHide;
         if (options.rootDir)
             this.rootDir = options.rootDir;
+        if (options.buffering)
+            this.buffering = options.buffering;
         if (options.modules)
             this.modules = options.modules;
         if (options.moduleOptions)
             this.moduleOptions = options.moduleOptions;
         if (options.pages)
             this.pages = options.pages;
-        this.updateRootDirectory();
+        this.updateBuffer();
         return this;
     }
     /**
@@ -182,41 +208,23 @@ class Mse {
         return this;
     }
     /**
-     * ### setRootDirectory
-     * Automatically loads MSE script files in the specified root directory and stores them in a buffer.
-     * @param {string} rootDir Root Directory
+     * ### updateBuffer
+     * Updates the buffer information for the specified root directory.
      * @returns {Mse}
      */
-    setRootDirectory(rootDir) {
-        this.buffers = {};
-        const lists = this.search(rootDir);
-        for (let n = 0; n < lists.length; n++) {
-            const list = lists[n];
-            const filePath = list.path + "/" + list.name;
-            const text = fs.readFileSync(filePath).toString();
-            const converted = this.convert(text);
-            const name = filePath.substring(rootDir.length);
-            this.buffers[name] = converted;
-        }
-        if (this.pages) {
-            if (this.pages.notFound) {
-                const content = fs.readFileSync(this.pages.notFound).toString();
-                this.addBuffer(MseIregularPageName.notFound, content);
-            }
-            if (this.pages.InternalError) {
-                const content = fs.readFileSync(this.pages.InternalError).toString();
-                this.addBuffer(MseIregularPageName.internalError, content);
-            }
-        }
-        return this;
-    }
-    updateRootDirectory(fileName) {
-        if (fileName) {
-            this.setRootDirectory(fileName);
-        }
-        else {
-            if (this.rootDir) {
-                this.setRootDirectory(this.rootDir);
+    updateBuffer() {
+        if (this.buffering) {
+            this.buffers = {};
+            this.search(this.rootDir);
+            if (this.pages) {
+                if (this.pages.notFound) {
+                    const content = fs.readFileSync(this.pages.notFound).toString();
+                    this.addBuffer(MseIregularPageName.notFound, content);
+                }
+                if (this.pages.InternalError) {
+                    const content = fs.readFileSync(this.pages.InternalError).toString();
+                    this.addBuffer(MseIregularPageName.internalError, content);
+                }
             }
         }
         return this;
@@ -234,9 +242,7 @@ class Mse {
                 target = "/" + target;
             }
             if (!this.buffers[target]) {
-                console.log(this.buffers);
-                console.log(target);
-                throw Error("Page not found.");
+                throw Error("Page not found." + target);
             }
             const text = this.buffers[target];
             if (!sandbox) {
@@ -277,16 +283,7 @@ class Mse {
             }
             sandbox.req = req;
             sandbox.res = res;
-            const urls = req.url.split("?");
-            let url = urls[0];
-            if (url[url.length - 1] == "/") {
-                url = url + "index";
-            }
-            url = url + this.ext;
-            if (!this.buffers[url]) {
-                url = urls[0] + "/index" + this.ext;
-            }
-            url = url.split("//").join("/");
+            const url = this.getUrl(req.url);
             try {
                 if (!this.buffers[url]) {
                     throw new MseError(MssIregularPageCode.notFound, "page not found.", {
@@ -325,28 +322,39 @@ class Mse {
             }
         });
     }
+    getUrl(baseUrl) {
+        const urls = baseUrl.split("?");
+        let url = urls[0];
+        if (url[url.length - 1] == "/") {
+            url = url + "index";
+        }
+        url = url + this.ext;
+        if (!this.buffers[url]) {
+            url = urls[0] + "/index" + this.ext;
+        }
+        url = url.split("//").join("/");
+        return url;
+    }
     search(target) {
-        let res = [];
         const lists = fs.readdirSync(target, {
             withFileTypes: true,
         });
         for (let n = 0; n < lists.length; n++) {
             const list = lists[n];
             if (list.isDirectory()) {
-                const buffer = this.search(list.path + "/" + list.name);
-                for (let n2 = 0; n2 < buffer.length; n2++) {
-                    const b_ = buffer[n2];
-                    res.push(b_);
-                }
+                this.search(target + "/" + list.name);
             }
             else {
                 if (path.extname(list.name) == this.ext ||
                     path.extname(list.name) == this.extHide) {
-                    res.push(list);
+                    const filePath = target + "/" + list.name;
+                    const text = fs.readFileSync(filePath).toString();
+                    const converted = this.convert(text);
+                    const name = filePath.substring(this.rootDir.length);
+                    this.buffers[name] = converted;
                 }
             }
         }
-        return res;
     }
     static base64Encode(text) {
         return Buffer.from(text, "utf-8").toString("base64");
@@ -460,14 +468,11 @@ class Mse {
                         return addBody.data;
                     });
                     const scriptUpdateBuffer = () => {
-                        ___CONTEXT.updateRootDirectory();
+                        ___CONTEXT.updateBuffer();
                     };
-                    const scriptUpdateBufferToFile = (fileName) => {
-                        if (fileName) {
-                            ___CONTEXT.updateRootDirectory(fileName);
-                        }
-                        else {
-                            ___CONTEXT.updateRootDirectory(___FILENAME);
+                    const staticUpdateBuffer = () => {
+                        if (___SANDBOX.updateBuffer) {
+                            ___SANDBOX.updateBuffer();
                         }
                     };
                     const require = undefined;

@@ -25,8 +25,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
-import { promises } from "dns";
-import { setHeapSnapshotNearHeapLimit } from "v8";
 
 export  class SandBox {
     public req? : IncomingMessage;
@@ -110,6 +108,21 @@ export interface IMseOption {
      * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
      */
     rootDir? : string,
+
+    /**
+     * ***buffering*** : Setting whether to buffer server data.  
+     * (The default is ``true``.)
+     * 
+     * If you select ``true``, when you instantiate or execute the ``setting`` method,  
+     * a set of files in the root directory with access permissions for each MimeType will be buffered.  
+     * When listening from now on, it will be loaded from the buffer.  
+     * 
+     * This is done as part of the speedup.  
+     * Even if a file in the root directory is changed, the display results will not be updated when listening.
+     * 
+     * If you select ``false``, no buffer will be created and the script file will be loaded every time you listen.  
+     */
+    buffering? : boolean,
 
     /**
      * ***modules*** : List of modules to use for the extension.
@@ -200,7 +213,22 @@ export class Mse {
      * ***rootDir*** : Path of the root directory to automatically load the buffer.   
      * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
      */
-    public rootDir: string;
+    public rootDir: string = "htdocs";
+
+    /**
+     * ***buffering*** : Setting whether to buffer server data.  
+     * (The default is ``true``.)
+     * 
+     * If you select ``true``, when you instantiate or execute the ``setting`` method,  
+     * a set of files in the root directory with access permissions for each MimeType will be buffered.  
+     * When listening from now on, it will be loaded from the buffer.  
+     * 
+     * This is done as part of the speedup.  
+     * Even if a file in the root directory is changed, the display results will not be updated when listening.
+     * 
+     * If you select ``false``, no buffer will be created and the script file will be loaded every time you listen.  
+     */
+    public buffering : boolean = true;
 
     /**
      * ***modules*** : List of modules to use for the extension.
@@ -225,7 +253,12 @@ export class Mse {
      * @param {IMseOption} options Option Settings  
      */
     public constructor(options? : IMseOption){
-        this.setting(options);
+        if (options){
+            this.setting(options);
+        }
+        else {
+            this.updateBuffer();
+        }
     }
 
     /**
@@ -239,6 +272,7 @@ export class Mse {
         if (options.ext) this.ext = options.ext;
         if (options.extHide) this.extHide = options.extHide;
         if (options.rootDir) this.rootDir = options.rootDir;
+        if (options.buffering) this.buffering = options.buffering;
         if (options.modules) this.modules = options.modules;
         if (options.moduleOptions) this.moduleOptions = options.moduleOptions;
         if (options.pages) this.pages = options.pages;
@@ -281,60 +315,24 @@ export class Mse {
     }
 
     /**
-     * ### setRootDirectory
-     * Automatically loads MSE script files in the specified root directory and stores them in a buffer.
-     * @param {string} rootDir Root Directory
+     * ### updateBuffer
+     * Updates the buffer information for the specified root directory.
      * @returns {Mse}
      */
-    public setRootDirectory(rootDir : string) : Mse {
-        this.buffers = {};
-        const lists = this.search(rootDir);
-        for ( let n = 0 ; n < lists.length ; n++) {
-            const list = lists[n];
-            const filePath = list.path + "/" + list.name;
-            const text =  fs.readFileSync(filePath).toString();
-            const converted = this.convert(text);
-            const name = filePath.substring(rootDir.length);
-            this.buffers[name] = converted;
-        }
-
-        if(this.pages){
-            if(this.pages.notFound){
-                const content = fs.readFileSync(this.pages.notFound).toString();
-                this.addBuffer(MseIregularPageName.notFound,  content);
+    public updateBuffer() : Mse {
+        if (this.buffering){
+            this.buffers = {};
+            this.search(this.rootDir);
+            if(this.pages){
+                if(this.pages.notFound){
+                    const content = fs.readFileSync(this.pages.notFound).toString();
+                    this.addBuffer(MseIregularPageName.notFound,  content);
+                }
+                if(this.pages.InternalError){
+                    const content = fs.readFileSync(this.pages.InternalError).toString();
+                    this.addBuffer(MseIregularPageName.internalError,  content);
+                }
             }
-            if(this.pages.InternalError){
-                const content = fs.readFileSync(this.pages.InternalError).toString();
-                this.addBuffer(MseIregularPageName.internalError,  content);
-            }    
-        }
-
-        return this;
-    }
-
-    /**
-     * ### updateBuffer
-     * Updates the buffer information for the specified root directory.
-     * @returns {Mse}
-     */
-    public updateBuffer() : Mse ;
-
-    /**
-     * ### updateBuffer
-     * Updates the buffer information for the specified root directory.
-     * @param {string} fileName update File Name
-     * @returns {Mse}
-     */
-    public updateBuffer(fileName : string) : Mse ;
-
-    public updateBuffer(fileName? : string) : Mse {
-        if (fileName){
-            this.setRootDirectory(fileName);
-        }
-        else{
-            if (this.rootDir){
-                this.setRootDirectory(this.rootDir);
-            }    
         }
         return this;
     }
@@ -351,9 +349,7 @@ export class Mse {
             target = "/" + target;
         }
         if (!this.buffers[target]){
-            console.log(this.buffers);
-            console.log(target);
-            throw Error("Page not found.");
+            throw Error("Page not found." + target);
         }
         const text = this.buffers[target];
         if(!sandbox){
@@ -417,7 +413,7 @@ export class Mse {
                     fileName: url,
                 });
             }
-            
+
             const result : IMseLoadResult= await this.load(url, sandbox);
 
             res.write(result.content);
@@ -462,36 +458,31 @@ export class Mse {
             url = urls[0] + "/index" + this.ext;
         }
         url = url.split("//").join("/");
-
         return url;        
     }
 
-    private search(target : string) {
-        let res = [];
+    private search(target : string) : void {
         const lists = fs.readdirSync(target, {
             withFileTypes: true,
         });
-
         for (let n = 0 ; n < lists.length ; n++){
             const list = lists[n];
             if (list.isDirectory()){
-                const buffer = this.search(list.path + "/" + list.name);
-                for (let n2 = 0 ; n2 < buffer.length ; n2++){
-                    const b_ = buffer[n2];
-                    res.push(b_);
-                }
+                this.search(target + "/" + list.name);
             }
             else {
                 if (
                     path.extname(list.name) == this.ext ||
                     path.extname(list.name) == this.extHide
                 ){
-                    res.push(list);
+                    const filePath = target + "/" + list.name;
+                    const text =  fs.readFileSync(filePath).toString();
+                    const converted = this.convert(text);
+                    const name = filePath.substring(this.rootDir.length);
+                    this.buffers[name] = converted;
                 }
             }
         }
-
-        return res;
     }
 
     public static base64Encode(text : string){
@@ -638,12 +629,9 @@ export class Mse {
                  ___CONTEXT.updateBuffer();
             };
 
-            const scriptUpdateBufferToFile = (fileName : string) => {
-                if (fileName){
-                    ___CONTEXT.updateBuffer(fileName);
-                }
-                else {
-                    ___CONTEXT.updateBuffer(___FILENAME);
+            const staticUpdateBuffer = ()=>{
+                if (___SANDBOX.updateBuffer){
+                    ___SANDBOX.updateBuffer();
                 }
             };
 

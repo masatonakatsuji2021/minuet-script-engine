@@ -50,10 +50,12 @@ export class MseFile extends MseModule {
         return fs.writeFileSync(this.getPath(filePath), data, options);
     }
 
-    public appendFile(filePath : string) {
-
-        
+    public appendFile(filePath : string, data: string | Uint8Array, options?: fs.WriteFileOptions) : void {
+        return fs.appendFileSync(this.getPath(filePath), data, options);        
     }
 
+    public readdir(filePath : string, options?: BufferEncoding | { encoding: BufferEncoding; withFileTypes?: false; }) : string[] | Buffer[] | fs.Dirent[] {
+        return fs.readdirSync(this.getPath(filePath), options);
+    }
 
 }
