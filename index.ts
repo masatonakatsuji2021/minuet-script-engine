@@ -25,6 +25,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
+import { describe } from "node:test";
 
 export  class SandBox {
     public req? : IncomingMessage;
@@ -139,6 +140,11 @@ export interface IMseOption {
      * For details, see ***IMseOptionPage***.
      */
     pages?: IMseOptionPage,
+
+    /**
+     * ***directoryIndexs*** : Specifies a list of files to display for a directory request..
+     */
+    directoryIndexs? : Array<string>,
 }
 
 export class MseError extends Error {
@@ -246,6 +252,11 @@ export class Mse {
      */
     public pages : IMseOptionPage = {};
 
+    /**
+     * ***directoryIndexs*** : Specifies a list of files to display for a directory request..
+     */
+    public directoryIndexs : Array<string> = [ "index.mse" ];
+
     private buffers = {};
 
     /**
@@ -276,6 +287,7 @@ export class Mse {
         if (options.modules) this.modules = options.modules;
         if (options.moduleOptions) this.moduleOptions = options.moduleOptions;
         if (options.pages) this.pages = options.pages;
+        if (options.directoryIndexs) this.directoryIndexs = options.directoryIndexs;
         this.updateBuffer();
         return this;
     }
@@ -408,7 +420,7 @@ export class Mse {
         sandbox.res = res;
         const url = this.getUrl(req.url);
         try{
-            if (!this.buffers[url]) {
+            if(!url){
                 throw new MseError(MssIregularPageCode.notFound, "page not found.", {
                     fileName: url,
                 });
@@ -448,17 +460,30 @@ export class Mse {
     }
 
     private getUrl(baseUrl : string) : string {
-        const urls = baseUrl.split("?");
-        let url = urls[0];      
-        if (url[url.length - 1] == "/") {
-            url = url + "index";
+        const url = baseUrl.split("?")[0];
+        let urlList = [];
+        urlList.push(url);
+        for (let n = 0 ; n < this.directoryIndexs.length ; n++){
+            const index = this.directoryIndexs[n];
+            urlList.push((url + "/" + index).split("//").join("/"));
         }
-        url = url + this.ext;
-        if(!this.buffers[url]){
-            url = urls[0] + "/index" + this.ext;
+
+        let decisionUrl : string;
+        for (let n = 0 ; n < urlList.length ; n++){
+            const url_ = urlList[n];;
+            if(this.buffers[url_]){
+                decisionUrl = url_;
+                break;
+            }
         }
-        url = url.split("//").join("/");
-        return url;        
+
+        if (decisionUrl){
+            if (path.extname(decisionUrl) == this.extHide) {
+                decisionUrl = undefined;
+            }
+        }
+
+        return decisionUrl;        
     }
 
     private search(target : string) : void {
@@ -478,7 +503,7 @@ export class Mse {
                     const filePath = target + "/" + list.name;
                     const text =  fs.readFileSync(filePath).toString();
                     const converted = this.convert(text);
-                    const name = filePath.substring(this.rootDir.length);
+                    const name = filePath.substring(this.rootDir.length).substring((this.ext.length) * -1);
                     this.buffers[name] = converted;
                 }
             }

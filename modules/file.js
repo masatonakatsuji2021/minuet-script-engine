@@ -45,7 +45,11 @@ class MseFile extends __1.MseModule {
     writeFile(filePath, data, options) {
         return fs.writeFileSync(this.getPath(filePath), data, options);
     }
-    appendFile(filePath) {
+    appendFile(filePath, data, options) {
+        return fs.appendFileSync(this.getPath(filePath), data, options);
+    }
+    readdir(filePath, options) {
+        return fs.readdirSync(this.getPath(filePath), options);
     }
 }
 exports.MseFile = MseFile;
