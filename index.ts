@@ -25,7 +25,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
-import { describe } from "node:test";
 
 export  class SandBox {
     public req? : IncomingMessage;
@@ -43,12 +42,12 @@ export interface IMseOptionPage {
      * ***notFound*** : If the page does not exist or is an inaccessible page or endpoint,  
      * the page file path is displayed instead of 404 notFound
      */
-    notFound? : string,
+    notFound? : string | boolean,
 
     /**
      * ***internalError*** : Proxy page file path for 500 Internal Server Error.
      */
-    InternalError?: string,
+    InternalError?: string | boolean,
 }
 
 export enum MssIregularPageCode {
@@ -145,6 +144,17 @@ export interface IMseOption {
      * ***directoryIndexs*** : Specifies a list of files to display for a directory request..
      */
     directoryIndexs? : Array<string>,
+
+    /**
+     * ***bufferingInterval*** : Update the buffer periodically.  
+     * Specify the execution time in milliseconds.
+     */
+    bufferingInterval? : number,
+
+    /**
+     * ***headers*** : Specify the default response header information.
+     */
+    headers?: Object,
 }
 
 export class MseError extends Error {
@@ -250,14 +260,26 @@ export class Mse {
      * ***pages*** : Page information to display on behalf of irregular request results    
      * For details, see ***IMseOptionPage***.
      */
-    public pages : IMseOptionPage = {};
+    public pages : IMseOptionPage;
 
     /**
      * ***directoryIndexs*** : Specifies a list of files to display for a directory request..
      */
     public directoryIndexs : Array<string> = [ "index.mse" ];
 
+    /**
+     * ***bufferingInterval*** : Update the buffer periodically.  
+     * Specify the execution time in milliseconds.
+     */
+    public bufferingInterval: number;
+
+    /**
+     * ***headers*** : Specify the default response header information.
+     */
+    public headers: Object = {};
+
     private buffers = {};
+    private bufferingIntervalT;
 
     /**
      * ### constructor
@@ -278,17 +300,20 @@ export class Mse {
      * @returns 
      */
     public setting(options? : IMseOption) : Mse {
-        if (options.tagStart)  this.tagStart = options.tagStart;
-        if (options.tagEnd) this.tagEnd = options.tagEnd;
-        if (options.ext) this.ext = options.ext;
-        if (options.extHide) this.extHide = options.extHide;
-        if (options.rootDir) this.rootDir = options.rootDir;
-        if (options.buffering) this.buffering = options.buffering;
-        if (options.modules) this.modules = options.modules;
-        if (options.moduleOptions) this.moduleOptions = options.moduleOptions;
-        if (options.pages) this.pages = options.pages;
-        if (options.directoryIndexs) this.directoryIndexs = options.directoryIndexs;
+        if (options.tagStart != undefined)  this.tagStart = options.tagStart;
+        if (options.tagEnd != undefined) this.tagEnd = options.tagEnd;
+        if (options.ext != undefined) this.ext = options.ext;
+        if (options.extHide != undefined) this.extHide = options.extHide;
+        if (options.rootDir != undefined) this.rootDir = options.rootDir;
+        if (options.buffering != undefined) this.buffering = options.buffering;
+        if (options.modules != undefined) this.modules = options.modules;
+        if (options.moduleOptions != undefined) this.moduleOptions = options.moduleOptions;
+        if (options.pages != undefined) this.pages = options.pages;
+        if (options.directoryIndexs != undefined) this.directoryIndexs = options.directoryIndexs;
+        if (options.bufferingInterval != undefined) this.bufferingInterval = options.bufferingInterval;
+        if (options.headers != undefined) this.headers = options.headers;
         this.updateBuffer();
+        this.startBufferingIntarval();
         return this;
     }
 
@@ -337,14 +362,32 @@ export class Mse {
             this.search(this.rootDir);
             if(this.pages){
                 if(this.pages.notFound){
-                    const content = fs.readFileSync(this.pages.notFound).toString();
-                    this.addBuffer(MseIregularPageName.notFound,  content);
+                    if (typeof this.pages.notFound == "string"){
+                        const content = fs.readFileSync(this.pages.notFound).toString();
+                        this.addBuffer(MseIregularPageName.notFound,  content);    
+                    }
                 }
                 if(this.pages.InternalError){
-                    const content = fs.readFileSync(this.pages.InternalError).toString();
-                    this.addBuffer(MseIregularPageName.internalError,  content);
+                    if (typeof this.pages.InternalError == "string"){
+                        const content = fs.readFileSync(this.pages.InternalError).toString();
+                        this.addBuffer(MseIregularPageName.internalError,  content);
+                    }
                 }
             }
+        }
+        return this;
+    }
+
+    /**
+     * *** startBufferingIntarval *** :
+     * @returns 
+     */
+    public startBufferingIntarval() {
+        if (this.bufferingInterval){
+            if (this.bufferingIntervalT) clearInterval(this.bufferingIntervalT);
+            this.bufferingIntervalT = setInterval(()=>{
+                this.updateBuffer();
+            }, this.bufferingInterval);
         }
         return this;
     }
@@ -428,34 +471,70 @@ export class Mse {
 
             const result : IMseLoadResult= await this.load(url, sandbox);
 
-            res.write(result.content);
-            res.end();    
-
-        } catch(error){
-            res.statusCode = MssIregularPageCode.internalError;
-            if(error instanceof MseError) {
-                res.statusCode = error.statusCode;
-                if (this.pages.notFound) {
-                    let result : IMseLoadResult;
-                    sandbox.exception = error;
-                    try{
-                        if (error.statusCode == MssIregularPageCode.notFound) {
-                            result = await this.load(MseIregularPageName.notFound, sandbox);
-                        }
-                        else {
-                            result = await this.load(MseIregularPageName.internalError, sandbox);
-                        }    
-                        res.write(result.content);
-                        res.end();    
-                        return;
-                    }catch(error){
-                        res.write(error.message + "\n");
+            if (this.headers) {
+                const hc = Object.keys(this.headers);
+                for (let n = 0 ; n < hc.length ; n++){
+                    const name = hc[n];
+                    const value = this.headers[name];
+                    if (!res.getHeader(name)){
+                        res.setHeader(name, value);
                     }
                 }
             }
 
-            res.write(error.toString());
+            res.write(result.content);
             res.end();    
+
+            return true;
+
+        } catch(error){
+
+            if (!this.pages){
+                return false;
+            }
+
+            res.statusCode = MssIregularPageCode.internalError;
+            if(!(error instanceof MseError)) {
+                error = new MseError(500, error.message);
+            }
+            
+            res.statusCode = error.statusCode;
+            sandbox.exception = error;
+
+            let result : IMseLoadResult;
+            try{
+
+                if (error.statusCode == MssIregularPageCode.notFound) {
+                    if (typeof this.pages.notFound == "string") {
+                        result = await this.load(MseIregularPageName.notFound, sandbox);
+                    }
+                    else {
+                        result = {
+                            data: null,
+                            content: error.message.toString(),
+                        };
+                    }
+                }
+                else {
+                    if (typeof this.pages.InternalError == "string"){
+                        result = await this.load(MseIregularPageName.internalError, sandbox);
+                    }
+                    else {
+                        result = {
+                            data: null,
+                            content: error.message.toString(),
+                        };
+                    }
+                }
+
+                res.write(result.content);
+                res.end();    
+                return true;
+            }catch(error){
+                res.write(error.message + "\n");
+                res.end();    
+                return true;
+            }
         }
     }
 

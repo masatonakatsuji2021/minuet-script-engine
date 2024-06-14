@@ -17,6 +17,10 @@ const mse = new __1.Mse({
         notFound: "error/404.mse",
         InternalError: "error/500.mse",
     },
+    headers: {
+        "content-type": "text/html",
+        "name": "minuet-script-engine",
+    },
     modules: [
         "http",
         "file",
@@ -24,7 +28,15 @@ const mse = new __1.Mse({
     ],
 });
 const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    yield mse.listen(req, res);
+    const mbefore = process.memoryUsage();
+    const status = yield mse.listen(req, res);
+    const mAfter = process.memoryUsage();
+    console.log({
+        rss: mAfter.rss - mbefore.rss,
+        heapTotal: mAfter.heapTotal - mbefore.heapTotal,
+        heapUsed: mAfter.heapUsed - mbefore.heapUsed,
+        external: mAfter.external - mbefore.external,
+    });
 }));
 h.listen(4851);
 console.log("listen http://localhost:4851");
