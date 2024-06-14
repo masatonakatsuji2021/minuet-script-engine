@@ -28,15 +28,7 @@ const mse = new __1.Mse({
     ],
 });
 const h = http.createServer((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const mbefore = process.memoryUsage();
-    const status = yield mse.listen(req, res);
-    const mAfter = process.memoryUsage();
-    console.log({
-        rss: mAfter.rss - mbefore.rss,
-        heapTotal: mAfter.heapTotal - mbefore.heapTotal,
-        heapUsed: mAfter.heapUsed - mbefore.heapUsed,
-        external: mAfter.external - mbefore.external,
-    });
+    yield mse.listen(req, res);
 }));
 h.listen(4851);
 console.log("listen http://localhost:4851");

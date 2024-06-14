@@ -469,18 +469,16 @@ export class Mse {
                 });
             }
 
-            const result : IMseLoadResult= await this.load(url, sandbox);
-
             if (this.headers) {
                 const hc = Object.keys(this.headers);
                 for (let n = 0 ; n < hc.length ; n++){
                     const name = hc[n];
                     const value = this.headers[name];
-                    if (!res.getHeader(name)){
-                        res.setHeader(name, value);
-                    }
+                    res.setHeader(name, value);
                 }
             }
+
+            const result : IMseLoadResult= await this.load(url, sandbox);
 
             res.write(result.content);
             res.end();    
