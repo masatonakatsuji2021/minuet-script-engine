@@ -25,6 +25,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { IncomingMessage, ServerResponse } from "http";
+import { MinuetServerModuleBase } from "minuet-server";
 
 export  class SandBox {
     public req? : IncomingMessage;
@@ -771,4 +772,25 @@ export class MseModule {
             this.options = options;
         }
     }
+}
+
+export class MinuetServerModuleMse extends MinuetServerModuleBase {
+
+    private mse : Mse;
+
+    public onBegin(): void {
+        if (!this.init){
+            this.init = {
+                rootDir: "htdocs",
+            };
+        }
+        this.init.rootDir = this.sector.root + "/" + this.init.rootDir;
+
+        this.mse = new Mse(this.init);
+    }
+
+    public async onRequest(req: IncomingMessage, res: ServerResponse<IncomingMessage>)  {
+        return await this.mse.listen(req, res);
+    }
+
 }

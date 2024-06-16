@@ -32,9 +32,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MseModule = exports.Mse = exports.MseError = exports.MssIregularPageCode = exports.SandBox = void 0;
+exports.MinuetServerModuleMse = exports.MseModule = exports.Mse = exports.MseError = exports.MssIregularPageCode = exports.SandBox = void 0;
 const fs = require("fs");
 const path = require("path");
+const minuet_server_1 = require("minuet-server");
 class SandBox {
     constructor() {
         this.___BODY = "";
@@ -574,3 +575,20 @@ class MseModule {
     }
 }
 exports.MseModule = MseModule;
+class MinuetServerModuleMse extends minuet_server_1.MinuetServerModuleBase {
+    onBegin() {
+        if (!this.init) {
+            this.init = {
+                rootDir: "htdocs",
+            };
+        }
+        this.init.rootDir = this.sector.root + "/" + this.init.rootDir;
+        this.mse = new Mse(this.init);
+    }
+    onRequest(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.mse.listen(req, res);
+        });
+    }
+}
+exports.MinuetServerModuleMse = MinuetServerModuleMse;
