@@ -1,4 +1,4 @@
-<? await include("common/header.mseh"); ?>
+<script mse> await include("common/header.mseh"); </script>
 
 <div class="content">
    <h2>Page2 Content...</h2>
@@ -6,4 +6,4 @@
     <p><a onclick="history.back()">Back</a></p>
 </div>
 
-<? await include("common/footer.mseh"); ?>
+<script mse> await include("common/footer.mseh"); </script>

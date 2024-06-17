@@ -79,12 +79,12 @@ enum MseIregularPageName {
 export interface IMseOption {
 
     /**
-     * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+     * ***tagStart*** : Script opening tag. If not specified, the default is ``<script mse>``,
      */
     tagStart?  : string,
 
     /**
-     * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+     * ***tagEnd*** : Script closing tag. If not specified, the default is ``</script>``,
      */
     tagEnd? : string,
 
@@ -201,14 +201,14 @@ export interface IMseLoadResult {
 export class Mse {
 
     /**
-     * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+     * ***tagStart*** : Script opening tag. If not specified, the default is ``<script mse>``,
      */
-    public tagStart : string = "<?";
+    public tagStart : string = "<script mse>";
 
     /**
-     * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+     * ***tagEnd*** : Script closing tag. If not specified, the default is ``</script>``,
      */
-    public tagEnd : string = "?>";
+    public tagEnd : string = "</script>";
 
     /**
      * ***ext*** : The extension of the script file that corresponds to MSE   
@@ -789,7 +789,7 @@ export class MinuetServerModuleMse extends MinuetServerModuleBase {
         this.mse = new Mse(this.init);
     }
 
-    public async onRequest(req: IncomingMessage, res: ServerResponse<IncomingMessage>)  {
+    public async onRequest(req: IncomingMessage, res: ServerResponse)  {
         return await this.mse.listen(req, res);
     }
 

@@ -1,4 +1,4 @@
-<? await include("common/header.mseh"); ?>
+<script mse>await include("common/header.mseh"); </script>
 <div class="content">
     content area.......OK
     <p><a href="/common/header.mseh">header mode</a></p>
@@ -6,4 +6,4 @@
     <p><a href="/page2">page2 mode</a></p>
     <p><a href="/page3">page3 mode</a></p>
 </div>
-<? await include("common/footer.mseh"); ?>
+<script mse>await include("common/footer.mseh");</script>

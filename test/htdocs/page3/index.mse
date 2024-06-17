@@ -1,22 +1,22 @@
-<? await include("common/header.mseh"); ?>
+<script mse>await include("common/header.mseh");</script>
 
 <div class="content">
     <h2>Page3</h2>
 
-    <?
+    <script mse>
     const post = await this.http.data;
     if (this.http.isPost) {
         debug(post); 
     }
-    ?>
+    </script>
 
     <form method="post">
-        <input type="text" name="value01" value="<? echo(post.value01); ?>" >
-        <input type="text" name="value02" value="<? echo(post.value02); ?>">
+        <input type="text" name="value01" value="<script mse>echo(post.value01);</script>" >
+        <input type="text" name="value02" value="<script mse>echo(post.value02);</script>">
         <input type="submit" value="Submit">
     </form>
 
-    <? echo(this.file.readFile("sample.txt").toString()); ?>
+    <script mse>echo(this.file.readFile("sample.txt").toString());</script>
 </div>
 
-<? await include("common/footer.mseh"); ?>
+<script mse>include("common/footer.mseh");</script> 

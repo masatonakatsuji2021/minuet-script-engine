@@ -89,13 +89,13 @@ class Mse {
      */
     constructor(options) {
         /**
-         * ***tagStart*** : Script opening tag. If not specified, the default is ``<?``,
+         * ***tagStart*** : Script opening tag. If not specified, the default is ``<script mse>``,
          */
-        this.tagStart = "<?";
+        this.tagStart = "<script mse>";
         /**
-         * ***tagEnd*** : Script closing tag. If not specified, the default is ``?>``,
+         * ***tagEnd*** : Script closing tag. If not specified, the default is ``</script>``,
          */
-        this.tagEnd = "?>";
+        this.tagEnd = "</script>";
         /**
          * ***ext*** : The extension of the script file that corresponds to MSE
          * when automatically loading a buffer by specifying the root directory.
