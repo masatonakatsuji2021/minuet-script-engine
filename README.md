@@ -20,14 +20,18 @@ const mse = new Mse();
 })();
 ```
 
-The code for ``sample.mse`` is as follows:
+The code for ``sample.mse`` is as follows:  
+The area enclosed by ``<script mse>`` and ``</script>`` is the script area, and this range behaves as a script.
 
-```php
+```html
 Hallo World!
-<?
+
+<script mse>
 const d = new Date();
 echo(d.getTime());
-?>
+</script>
+
+Welcome!
 ```
 
 If you run this, you will get output similar to the following  :

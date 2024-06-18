@@ -1,5 +1,5 @@
-<? await include("common/header.mseh"); ?>
+<script mse>await include("common/header.mseh");</script>
 
 <h2>404 Not Found.</h2>
 
-<? await include("common/footer.mseh"); ?>
+<script mse>await include("common/footer.mseh");</script>
