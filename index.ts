@@ -156,6 +156,18 @@ export interface IMseOption {
      * ***headers*** : Specify the default response header information.
      */
     headers?: Object,
+
+    /**
+     * ***logAccess*** : Specify the log output at the time of the request.  
+     * Apply the log setting name set in ``minuet-server-logger``.
+     */
+    logAccess? : string,
+
+    /**
+     * ***logSuccess*** : Specify the log output when an error occurs.  
+     * Apply the log setting name set in ``minuet-server-logger``.
+     */
+    logError? : string,
 }
 
 export class MseError extends Error {
@@ -279,8 +291,21 @@ export class Mse {
      */
     public headers: Object = {};
 
+    /**
+     * ***logAccess*** : Specify the log output at the time of the request.  
+     * Apply the log setting name set in ``minuet-server-logger``.
+     */
+    public logAccess : string;
+    
+    /**
+     * ***logSuccess*** : Specify the log output when an error occurs.  
+     * Apply the log setting name set in ``minuet-server-logger``.
+     */
+    public logError : string;
+
     private buffers = {};
     private bufferingIntervalT;
+    public logger;
 
     /**
      * ### constructor
@@ -313,6 +338,8 @@ export class Mse {
         if (options.directoryIndexs != undefined) this.directoryIndexs = options.directoryIndexs;
         if (options.bufferingInterval != undefined) this.bufferingInterval = options.bufferingInterval;
         if (options.headers != undefined) this.headers = options.headers;
+        if (options.logAccess != undefined) this.logAccess = options.logAccess;
+        if (options.logError != undefined) this.logError = options.logError;
         this.updateBuffer();
         this.startBufferingIntarval();
         return this;
@@ -482,9 +509,10 @@ export class Mse {
             const result : IMseLoadResult= await this.load(url, sandbox);
 
             res.write(result.content);
-            res.end();    
+            res.end();   
 
-            return true;
+            // access log write
+            this.log(this.logAccess, req, res);
 
         } catch(error){
 
@@ -500,6 +528,7 @@ export class Mse {
             res.statusCode = error.statusCode;
             sandbox.exception = error;
 
+            let errorStr;
             let result : IMseLoadResult;
             try{
 
@@ -525,18 +554,35 @@ export class Mse {
                         };
                     }
                 }
-
+                errorStr = result.content;
                 res.write(result.content);
-                res.end();    
-                return true;
+                res.end();
             }catch(error){
+                errorStr = error.message.toString();
                 res.write(error.message + "\n");
-                res.end();    
-                return true;
+                res.end();
+            }
+
+            // access log write
+            this.log(this.logAccess, req, res);
+            // error log write
+            this.log(this.logError, req, res, errorStr);
+        }
+
+        return true;
+    }
+
+    // log write
+    private log(logMode : string, req : IncomingMessage, res : ServerResponse, message? : string) {
+        if (!logMode) return;
+        if (this.logger) {
+            if (typeof logMode == "string") {
+                this.logger.write(logMode, req, res, message);
             }
         }
     }
 
+    // get request url
     private getUrl(baseUrl : string) : string {
         const url = baseUrl.split("?")[0];
         let urlList = [];
@@ -785,8 +831,13 @@ export class MinuetServerModuleMse extends MinuetServerModuleBase {
             };
         }
         this.init.rootDir = this.sector.root + "/" + this.init.rootDir;
-
         this.mse = new Mse(this.init);
+
+        // load logger module
+        const logger = this.getModule("logger");
+        if (logger) {
+            this.mse.logger = logger;
+        }
     }
 
     public async onRequest(req: IncomingMessage, res: ServerResponse)  {

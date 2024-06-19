@@ -183,6 +183,10 @@ class Mse {
             this.bufferingInterval = options.bufferingInterval;
         if (options.headers != undefined)
             this.headers = options.headers;
+        if (options.logAccess != undefined)
+            this.logAccess = options.logAccess;
+        if (options.logError != undefined)
+            this.logError = options.logError;
         this.updateBuffer();
         this.startBufferingIntarval();
         return this;
@@ -330,7 +334,8 @@ class Mse {
                 const result = yield this.load(url, sandbox);
                 res.write(result.content);
                 res.end();
-                return true;
+                // access log write
+                this.log(this.logAccess, req, res);
             }
             catch (error) {
                 if (!this.pages) {
@@ -342,6 +347,7 @@ class Mse {
                 }
                 res.statusCode = error.statusCode;
                 sandbox.exception = error;
+                let errorStr;
                 let result;
                 try {
                     if (error.statusCode == MssIregularPageCode.notFound) {
@@ -366,18 +372,34 @@ class Mse {
                             };
                         }
                     }
+                    errorStr = result.content;
                     res.write(result.content);
                     res.end();
-                    return true;
                 }
                 catch (error) {
+                    errorStr = error.message.toString();
                     res.write(error.message + "\n");
                     res.end();
-                    return true;
                 }
+                // access log write
+                this.log(this.logAccess, req, res);
+                // error log write
+                this.log(this.logError, req, res, errorStr);
             }
+            return true;
         });
     }
+    // log write
+    log(logMode, req, res, message) {
+        if (!logMode)
+            return;
+        if (this.logger) {
+            if (typeof logMode == "string") {
+                this.logger.write(logMode, req, res, message);
+            }
+        }
+    }
+    // get request url
     getUrl(baseUrl) {
         const url = baseUrl.split("?")[0];
         let urlList = [];
@@ -584,6 +606,11 @@ class MinuetServerModuleMse extends minuet_server_1.MinuetServerModuleBase {
         }
         this.init.rootDir = this.sector.root + "/" + this.init.rootDir;
         this.mse = new Mse(this.init);
+        // load logger module
+        const logger = this.getModule("logger");
+        if (logger) {
+            this.mse.logger = logger;
+        }
     }
     onRequest(req, res) {
         return __awaiter(this, void 0, void 0, function* () {

@@ -5,7 +5,7 @@ const mse = new Mse({
     rootDir: "htdocs",
     pages: {
         notFound: "error/404.mse",
-         InternalError: "error/500.mse",
+        InternalError: "error/500.mse",
     },
     headers: {
         "content-type":"text/html",
