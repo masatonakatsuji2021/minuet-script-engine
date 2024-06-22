@@ -431,10 +431,20 @@ export class Mse {
         if(target[0] != "/"){
             target = "/" + target;
         }
-        if (!this.buffers[target]){
-            throw Error("Page not found." + target);
+        let text : string;
+        if (this.buffering) {
+            if (!this.buffers[target]){
+                throw Error("Page not found." + target);
+            }    
+            text = this.buffers[target];
         }
-        const text = this.buffers[target];
+        else {
+            if (!fs.existsSync(this.rootDir + "/" + target)) {
+                throw Error("Page not found." + target);
+            }
+            text = fs.readFileSync(this.rootDir + "/" + target).toString();
+            text = this.convert(text);
+        }
         if(!sandbox){
             sandbox = this.setSandBox();
         }
@@ -690,7 +700,10 @@ export class Mse {
             }
         }
         else {
-            
+            if (fs.existsSync(this.rootDir + "/" + target)) {
+                const content = fs.readFileSync(this.rootDir + "/" + target).toString();
+                return this.convert(content);
+            }
         }
     }
 
@@ -823,7 +836,7 @@ export class Mse {
             try {
                 resData = await eval("(async ()=>{" + ___TEXT + "})();");
             }catch(error){
-                throw new MseError(500, error.message, {
+                throw new MseError(500, error.message + "(File : " + ___FILENAME + ")", {
                     fileName : ___FILENAME,                    
                 });
             }

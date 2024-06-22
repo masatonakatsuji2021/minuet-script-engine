@@ -274,10 +274,20 @@ class Mse {
             if (target[0] != "/") {
                 target = "/" + target;
             }
-            if (!this.buffers[target]) {
-                throw Error("Page not found." + target);
+            let text;
+            if (this.buffering) {
+                if (!this.buffers[target]) {
+                    throw Error("Page not found." + target);
+                }
+                text = this.buffers[target];
             }
-            const text = this.buffers[target];
+            else {
+                if (!fs.existsSync(this.rootDir + "/" + target)) {
+                    throw Error("Page not found." + target);
+                }
+                text = fs.readFileSync(this.rootDir + "/" + target).toString();
+                text = this.convert(text);
+            }
             if (!sandbox) {
                 sandbox = this.setSandBox();
             }
@@ -478,6 +488,11 @@ class Mse {
         }
         return convertScriptStr;
     }
+    /**
+     * getRaw
+     * @param target
+     * @returns
+     */
     getRaw(target) {
         if (target[0] != "/") {
             target = "/" + target;
@@ -488,8 +503,18 @@ class Mse {
             }
         }
         else {
+            if (fs.existsSync(this.rootDir + "/" + target)) {
+                const content = fs.readFileSync(this.rootDir + "/" + target).toString();
+                return this.convert(content);
+            }
         }
     }
+    /**
+     * rawExec
+     * @param raw
+     * @param sandbox
+     * @returns
+     */
     rawExec(raw, sandbox) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!sandbox) {
@@ -591,7 +616,7 @@ class Mse {
                         resData = yield eval("(async ()=>{" + ___TEXT + "})();");
                     }
                     catch (error) {
-                        throw new MseError(500, error.message, {
+                        throw new MseError(500, error.message + "(File : " + ___FILENAME + ")", {
                             fileName: ___FILENAME,
                         });
                     }
