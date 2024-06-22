@@ -478,6 +478,26 @@ class Mse {
         }
         return convertScriptStr;
     }
+    getRaw(target) {
+        if (target[0] != "/") {
+            target = "/" + target;
+        }
+        if (this.buffering) {
+            if (this.buffers[target]) {
+                return this.buffers[target];
+            }
+        }
+        else {
+        }
+    }
+    rawExec(raw, sandbox) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!sandbox) {
+                sandbox = this.setSandBox();
+            }
+            return yield this.sandbox("anonymous", raw, sandbox);
+        });
+    }
     /**
      * ### execute
      * Execute a script by specifying the code directly.

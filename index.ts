@@ -676,6 +676,38 @@ export class Mse {
     }
 
     /**
+     * getRaw
+     * @param target 
+     * @returns 
+     */
+    public getRaw(target : string) : string {
+        if(target[0] != "/"){
+            target = "/" + target;
+        }
+        if (this.buffering){
+            if (this.buffers[target]){
+                return this.buffers[target];
+            }
+        }
+        else {
+            
+        }
+    }
+
+    /**
+     * rawExec
+     * @param raw 
+     * @param sandbox 
+     * @returns 
+     */
+    public async rawExec(raw : string, sandbox? : SandBox) : Promise<IMseLoadResult> {
+        if (!sandbox){
+            sandbox = this.setSandBox();
+        }
+        return await this.sandbox("anonymous", raw, sandbox);
+    }
+
+    /**
      * ### execute
      * Execute a script by specifying the code directly.   
      * This method does not use the buffer function.
