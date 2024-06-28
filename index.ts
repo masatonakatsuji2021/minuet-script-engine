@@ -108,7 +108,7 @@ export interface IMseOption {
      * ***rootDir*** : Path of the root directory to automatically load the buffer.   
      * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
      */
-    rootDir? : string,
+    rootDir? : string | {[url : string] : string},
 
     /**
      * ***buffering*** : Setting whether to buffer server data.  
@@ -242,7 +242,7 @@ export class Mse {
      * ***rootDir*** : Path of the root directory to automatically load the buffer.   
      * If specified, all Mse-compatible files (.mse. mseh) in the root directory will be buffered.
      */
-    public rootDir: string = "htdocs";
+    public rootDir: string | {[url: string] : string}  = "htdocs";
 
     /**
      * ***buffering*** : Setting whether to buffer server data.  
@@ -346,6 +346,24 @@ export class Mse {
     }
 
     /**
+     * addRootDir
+     * @param {string} url 
+     * @param {string} rootDir 
+     */
+    public addRootDir(url : string, rootDir : string) {
+        if (typeof this.rootDir == "string") {
+            this.rootDir = { "/" : this.rootDir };
+        }
+
+        this.rootDir[url] = rootDir;
+
+        if(this.buffering) {
+            this.search(rootDir, url);
+        }
+    }
+
+
+    /**
      * ### resetBuffer
      * Delete the contents of the buffer.
      * @returns {Mse}
@@ -387,7 +405,16 @@ export class Mse {
     public updateBuffer() : Mse {
         if (this.buffering){
             this.buffers = {};
-            this.search(this.rootDir);
+            if(typeof this.rootDir == "string") {
+                this.rootDir = { "/" : this.rootDir };
+            }
+            const r = Object.keys(this.rootDir);
+            for(let n = 0 ; n < r.length ; n++) {
+                const url = r[n];
+                const rootDir = this.rootDir[url];
+                this.search(rootDir, url);
+            }
+
             if(this.pages){
                 if(this.pages.notFound){
                     if (typeof this.pages.notFound == "string"){
@@ -439,10 +466,32 @@ export class Mse {
             text = this.buffers[target];
         }
         else {
-            if (!fs.existsSync(this.rootDir + "/" + target)) {
+            if (typeof this.rootDir == "string") {
+                this.rootDir = { "/": this.rootDir };
+            }
+
+            let decisionPath;
+            const c = Object.keys(this.rootDir);
+            for (let n2 = 0 ; n2 < c.length ; n2++) {
+                const burl = c[n2];
+                const rootDir = this.rootDir[burl];
+
+                if (target.indexOf(burl) === 0) {
+                    const targetPath = (rootDir + "/" + target.substring(burl.length)).split("//").join("/");
+                    if (fs.existsSync(targetPath)) {
+                        if (fs.statSync(targetPath).isFile()){
+                            decisionPath = targetPath;
+                            break;
+                        }
+                    }    
+                }
+            }
+
+            if (!decisionPath) {
                 throw Error("Page not found." + target);
             }
-            text = fs.readFileSync(this.rootDir + "/" + target).toString();
+
+            text = fs.readFileSync(decisionPath).toString();
             text = this.convert(text);
         }
         if(!sandbox){
@@ -605,9 +654,32 @@ export class Mse {
         let decisionUrl : string;
         for (let n = 0 ; n < urlList.length ; n++){
             const url_ = urlList[n];;
-            if(this.buffers[url_]){
-                decisionUrl = url_;
-                break;
+            if (this.buffering) {
+                if(this.buffers[url_]){
+                    decisionUrl = url_;
+                    break;
+                }   
+            }
+            else {
+                if (typeof this.rootDir == "string") {
+                    this.rootDir = { "/": this.rootDir };
+                }
+
+                const c = Object.keys(this.rootDir);
+                for (let n2 = 0 ; n2 < c.length ; n2++) {
+                    const burl = c[n2];
+                    const rootDir = this.rootDir[burl];
+
+                    if (url_.indexOf(burl) === 0) {
+                        const targetPath = (rootDir + "/" + url_.substring(burl.length)).split("//").join("/");
+                        if (fs.existsSync(targetPath)) {
+                            if (fs.statSync(targetPath).isFile()){
+                                decisionUrl = url_;
+                                break;
+                            }
+                        }    
+                    }
+                }
             }
         }
 
@@ -620,14 +692,14 @@ export class Mse {
         return decisionUrl;        
     }
 
-    private search(target : string) : void {
+    private search(target : string, url : string) : void {
         const lists = fs.readdirSync(target, {
             withFileTypes: true,
         });
         for (let n = 0 ; n < lists.length ; n++){
             const list = lists[n];
             if (list.isDirectory()){
-                this.search(target + "/" + list.name);
+                this.search(target + "/" + list.name, url);
             }
             else {
                 if (
@@ -637,7 +709,11 @@ export class Mse {
                     const filePath = target + "/" + list.name;
                     const text =  fs.readFileSync(filePath).toString();
                     const converted = this.convert(text);
-                    const name = filePath.substring(this.rootDir.length).substring((this.ext.length) * -1);
+                    let url2 = url;
+                    if (url2 == "/") {
+                        url2 = "";
+                    }
+                    const name = url2 + filePath.substring(this.rootDir[url].length).substring((this.ext.length) * -1);
                     this.buffers[name] = converted;
                 }
             }
