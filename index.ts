@@ -643,7 +643,10 @@ export class Mse {
 
     // get request url
     private getUrl(baseUrl : string) : string {
-        const url = baseUrl.split("?")[0];
+        let url = baseUrl.split("?")[0];
+        if (url[url.length - 1] == "/") {
+            url = url.substring(0, url.length- 1);
+        }
         let urlList = [];
         urlList.push(url);
         for (let n = 0 ; n < this.directoryIndexs.length ; n++){
