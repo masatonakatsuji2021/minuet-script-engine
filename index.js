@@ -724,7 +724,12 @@ class MinuetServerModuleMse extends minuet_server_1.MinuetServerModuleBase {
     }
     onRequest(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            return yield this.mse.listen(req, res);
+            try {
+                return yield this.mse.listen(req, res);
+            }
+            catch (err) {
+                return;
+            }
         });
     }
 }
