@@ -725,7 +725,7 @@ class MinuetServerModuleMse extends minuet_server_1.MinuetServerModuleBase {
             this.mse.logger = logger;
         }
     }
-    onRequest(req, res) {
+    onListen(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 return yield this.mse.listen(req, res);

@@ -964,7 +964,7 @@ export class MinuetServerModuleMse extends MinuetServerModuleBase {
         }
     }
 
-    public async onRequest(req: IncomingMessage, res: ServerResponse)  {
+    public async onListen(req: IncomingMessage, res: ServerResponse)  {
         try{
             return await this.mse.listen(req, res);
         }catch(err){
