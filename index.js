@@ -452,7 +452,7 @@ class Mse {
     // get request url
     getUrl(baseUrl) {
         let url = baseUrl.split("?")[0];
-        if (url[url.length - 1] == "/") {
+        if (url != "/" && url[url.length - 1] == "/") {
             url = url.substring(0, url.length - 1);
         }
         let urlList = [];

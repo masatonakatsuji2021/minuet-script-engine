@@ -644,7 +644,7 @@ export class Mse {
     // get request url
     private getUrl(baseUrl : string) : string {
         let url = baseUrl.split("?")[0];
-        if (url[url.length - 1] == "/") {
+        if (url != "/" && url[url.length - 1] == "/") {
             url = url.substring(0, url.length- 1);
         }
         let urlList = [];
